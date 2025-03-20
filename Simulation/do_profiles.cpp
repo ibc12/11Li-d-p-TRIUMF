@@ -5,7 +5,10 @@
 #include "TGraph.h"
 #include "TMath.h"
 #include "TRandom.h"
-
+#include "TLine.h"
+#include "TROOT.h"
+#include "Math/Point3D.h"
+#include "TProfile.h"
 
 #include "ActSRIM.h"
 #include "ActKinematics.h"
@@ -21,15 +24,90 @@ bool IsInsideACTAR(XYZPoint point)
     return a && b && c;
 }
 
+void FillHistogram (ActPhysics::SRIM* srim, const std::string& particle, double T3Lab, XYZPoint vertex, XYZVector direction, double step, TGraph* graph, std::vector<double>& finalPoints)
+{
+    double initialRange {srim->EvalRange(particle, T3Lab)};
+    double Eiter = T3Lab;
+    bool isOutside {false};
+    for(double r = step; r < initialRange; r += step)
+    {
+        double EpostSlow {srim->Slow(particle, Eiter, step)};
+        double eLoss {Eiter - EpostSlow};
+
+        XYZPoint stepPoint {vertex + r * direction.Unit()};
+        if(!IsInsideACTAR(stepPoint) && !isOutside)
+        {
+            finalPoints.push_back(r);
+            isOutside = true;
+            std::cout << "Out of ACTAR at r = " << r << std::endl;
+        }
+
+        // Fill the graph
+        graph->SetPoint(graph->GetN(), r, eLoss);
+        // std::cout << "r: " << r << ", eLoss: " << eLoss << std::endl;
+
+        Eiter = EpostSlow;
+    }
+    if (!isOutside)
+        finalPoints.push_back(-100);
+}
+
+void FillHistogramWithUncertanty (ActPhysics::SRIM* srim, const std::string& particle, double T3Lab, XYZPoint vertex, XYZVector direction, double step, TProfile* profile, std::vector<double>& finalPoints, int nIterations, double sigma_r)
+{
+    double initialRange {srim->EvalRange(particle, T3Lab)};
+    bool isOutside {false};
+    std::vector<double> finalPointAllIterations {};
+
+    for (int iter = 0; iter < nIterations; iter++) // Repit the process to introduce uncertainty
+    {
+        double Eiter = T3Lab;
+        for(double r = step; r < initialRange; r += step)
+        {
+            double EpostSlow {srim->Slow(particle, Eiter, step)};
+            double eLoss {Eiter - EpostSlow};
+
+            // Introducir incertidumbre en r
+            double r_measured = gRandom->Gaus(r, sigma_r);
+
+            XYZPoint stepPoint {vertex + r_measured * direction.Unit()};
+            if(!IsInsideACTAR(stepPoint) && !isOutside)
+            {
+                finalPointAllIterations.push_back(r_measured);
+                isOutside = true;
+                std::cout << "Out of ACTAR at r = " << r_measured << std::endl;
+            }
+
+            // Llenar el perfil con el valor de energía perdida
+            profile->Fill(r_measured, eLoss);
+
+            Eiter = EpostSlow;
+        }
+    }
+
+    if (!isOutside)
+    {
+        finalPoints.push_back(-100);
+    }
+    else
+    {
+        double mean {0};
+        for (auto& r : finalPointAllIterations)
+        {
+            mean += r;
+        }
+        mean /= finalPointAllIterations.size();
+        finalPoints.push_back(mean);
+    }
+}
+
 void do_profiles() 
 {
     // SRIM
     auto* srim {new ActPhysics::SRIM};
-    srim->ReadTable("light", "../SRIM files/proton_900mb_CF4_90-10.txt");
-    srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_90-10.txt");
-    srim->ReadTable("heavy", "../SRIM files/12Li_900mb_CF4_90-10.txt");
-    srim->ReadTable("lightInSil", "../SRIM files/protons_silicon.txt");
-    srim->ReadTable("heavyInSil", "../SRIM files/12Li_silicon.txt");
+    srim->SetUseSpline(false);
+    srim->ReadTable("light", "../SRIM files/proton_900mb_CF4_95-5.txt");
+    srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_95-5.txt");
+    srim->ReadTable("heavy", "../SRIM files/12Li_900mb_CF4_95-5.txt");
 
     // Kinematics
     const std::string& beam {"11Li"};
@@ -43,8 +121,10 @@ void do_profiles()
 
     // We will do the profiles for a limited number of angles
     //const std::vector<double> thetas {0., 10., 20., 30., 40., 50., 60., 70., 80., 90., 100., 110., 120., 130., 140., 150., 160., 170.};
-    const std::vector<double> thetas {10., 20.};
+    const std::vector<double> thetas {10., 20., 30, 40};
     std::vector<TGraph*> graphs;
+
+    std::vector<double> finalPoints {}; 
 
     for(double thetaCM : thetas)
     {
@@ -56,40 +136,16 @@ void do_profiles()
         double theta3Lab {kin->GetTheta3Lab()};
         double T3Lab {kin->GetT3Lab()};
 
-        double initialRange {srim->EvalRange("light", T3Lab)};
-
-        double step {initialRange / 1000.};
-        std::cout << "Initial range: " << initialRange << ", step: " << step << std::endl;
-
         XYZPoint vertex {128, 128, 128};
         XYZVector direction {TMath::Cos(theta3Lab), TMath::Sin(theta3Lab) * TMath::Sin(phi3CM),
                              TMath::Sin(theta3Lab) * TMath::Cos(phi3CM)};
         
-
-        double Eiter = T3Lab;
-
+        // Create the graph and fill it
+        double step {0.5}; // mm
         auto gProfile {new TGraph};
-        gProfile->SetTitle(TString::Format("Eloss profile for #theta_{CM} = %.1f #circ;distance [mm];dE/dx [MeV/%.2fmm]", thetaCM, step));
+        gProfile->SetTitle(TString::Format("Eloss profile for #theta_{Lab} = %.1f #circ;distance [mm];dE/dx [MeV/%.2fmm]", theta3Lab * TMath::RadToDeg(), step));
 
-        for(double r = step; r < initialRange; r += step)
-        {
-            double EpostSlow {srim->Slow("light", Eiter, step)};
-            double eLoss {Eiter - EpostSlow};
-
-            XYZPoint stepPoint {vertex + r * direction.Unit()};
-            if(!IsInsideACTAR(stepPoint))
-            {
-
-                break;
-            }
-
-            // Fill the graph
-            gProfile->SetPoint(gProfile->GetN(), r, eLoss);
-            std::cout << "r: " << r << ", eLoss: " << eLoss << std::endl;
-
-            Eiter = EpostSlow;
-        }
-
+        FillHistogram(srim, "light", T3Lab, vertex, direction, step, gProfile, finalPoints);
         graphs.push_back(gProfile);
     }
 
@@ -99,7 +155,14 @@ void do_profiles()
     for(int i = 0; i < graphs.size(); i++)
     {
         c0->cd(i + 1);
-        graphs[i]->DrawClone("AL");
+        graphs[i]->DrawClone("APL");
+        gPad->Update();
+        std::cout<<finalPoints[i]<<std::endl;   
+        auto* line {new TLine {finalPoints[i], gPad->GetUymin(), finalPoints[i], gPad->GetUymax()}};
+        line->SetLineWidth(2);
+        line->Draw();
+        gROOT->SetSelectedPad(nullptr);
+
     }
 
 }
