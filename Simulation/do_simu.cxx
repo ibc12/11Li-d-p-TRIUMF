@@ -89,7 +89,7 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
     for(auto& [name, layer] : sils->GetLayers())
     {   
         if(name == "f0" || name == "f1")
-            layer.MoveZTo(75, {4, 3});
+            layer.MoveZTo(75, {3});
         if(name == "l0" || name == "r0")
             layer.MoveZTo(75, {3});
     }

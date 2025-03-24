@@ -52,7 +52,7 @@ void FillHistogram (ActPhysics::SRIM* srim, const std::string& particle, double 
         finalPoints.push_back(-100);
 }
 
-void FillHistogramWithUncertanty (ActPhysics::SRIM* srim, const std::string& particle, double T3Lab, XYZPoint vertex, XYZVector direction, double step, TProfile* profile, std::vector<double>& finalPoints, int nIterations, double sigma_r)
+void FillHistogramWithUncertantyInRange (ActPhysics::SRIM* srim, const std::string& particle, double T3Lab, XYZPoint vertex, XYZVector direction, double step, TProfile* profile, std::vector<double>& finalPoints, int nIterations, double sigma_r)
 {
     double initialRange {srim->EvalRange(particle, T3Lab)};
     bool isOutside {false};
@@ -100,6 +100,56 @@ void FillHistogramWithUncertanty (ActPhysics::SRIM* srim, const std::string& par
     }
 }
 
+void FillHistogramWithUncertantyInRangeAndELoss (ActPhysics::SRIM* srim, const std::string& particle, double T3Lab, XYZPoint vertex, XYZVector direction, double step, TProfile* profile, std::vector<double>& finalPoints, int nIterations, double sigma_r, double sigma_eLoss_percent)
+{
+    double initialRange {srim->EvalRange(particle, T3Lab)};
+    bool isOutside {false};
+    std::vector<double> finalPointAllIterations {};
+
+    for (int iter = 0; iter < nIterations; iter++) // Repit the process to introduce uncertainty
+    {
+        double Eiter = T3Lab;
+        for(double r = step; r < initialRange; r += step)
+        {
+            double EpostSlow {srim->Slow(particle, Eiter, step)};
+            double eLoss {Eiter - EpostSlow};
+
+            // Introduction of uncertainty in r and eLoss
+            double r_measured = gRandom->Gaus(r, sigma_r);
+            double eLoss_measured = gRandom->Gaus(eLoss, eLoss * sigma_eLoss_percent);
+
+            XYZPoint stepPoint {vertex + r_measured * direction.Unit()};
+            if(!IsInsideACTAR(stepPoint) && !isOutside)
+            {
+                finalPointAllIterations.push_back(r_measured);
+                isOutside = true;
+                std::cout << "Out of ACTAR at r = " << r_measured << std::endl;
+            }
+
+            // Llenar el perfil con el valor de energía perdida
+            profile->Fill(r_measured, eLoss_measured);
+
+            Eiter = EpostSlow;
+        }
+    }
+
+    if (!isOutside)
+    {
+        finalPoints.push_back(-100);
+    }
+    else
+    {
+        double mean {0};
+        for (auto& r : finalPointAllIterations)
+        {
+            mean += r;
+        }
+        mean /= finalPointAllIterations.size();
+        finalPoints.push_back(mean);
+    }
+}
+
+
 void do_profiles() 
 {
     // SRIM
@@ -123,10 +173,14 @@ void do_profiles()
     //const std::vector<double> thetas {0., 10., 20., 30., 40., 50., 60., 70., 80., 90., 100., 110., 120., 130., 140., 150., 160., 170.};
     const std::vector<double> thetas {10., 20., 30, 40};
     std::vector<TGraph*> graphs;
+    std::vector<TProfile*> profilesRangeUncertanty;
+    std::vector<TProfile*> profilesRangeAndELossUncertanty;
 
-    std::vector<double> finalPoints {}; 
+    std::vector<double> finalPointsGraph {}; 
+    std::vector<double> finalPointsProfileRangeUncertanty {};
+    std::vector<double> finalPointsProfileRangeElossUncertanty {};
 
-    for(double thetaCM : thetas)
+    for(int i = 1; double thetaCM : thetas)
     {
         // Set the angle
         double phi3CM {gRandom -> Uniform(0, 2 * TMath::Pi())};
@@ -145,11 +199,25 @@ void do_profiles()
         auto gProfile {new TGraph};
         gProfile->SetTitle(TString::Format("Eloss profile for #theta_{Lab} = %.1f #circ;distance [mm];dE/dx [MeV/%.2fmm]", theta3Lab * TMath::RadToDeg(), step));
 
-        FillHistogram(srim, "light", T3Lab, vertex, direction, step, gProfile, finalPoints);
+        FillHistogram(srim, "light", T3Lab, vertex, direction, step, gProfile, finalPointsGraph);
         graphs.push_back(gProfile);
+
+        // Ceate the profile for range uncertanty and fill it
+        auto pProfile {new TProfile(TString::Format("profile_uRange_%d", i), "Eloss profile", 1000, 0, srim->EvalRange("light", T3Lab) + 50)};
+        pProfile->SetTitle(TString::Format("Eloss profile for #theta_{Lab} = %.1f #circ;distance [mm];dE/dx [MeV/%.2fmm]", theta3Lab * TMath::RadToDeg(), step));
+        FillHistogramWithUncertantyInRange(srim, "light", T3Lab, vertex, direction, step, pProfile, finalPointsProfileRangeUncertanty, 100, 2);
+        profilesRangeUncertanty.push_back(pProfile);
+
+        // Create the profile for range and energy loss uncertanty and fill it
+        auto pProfile2 {new TProfile(TString::Format("profile_uRange_uEloss_%d", i), "Eloss profile", 1000, 0, srim->EvalRange("light", T3Lab) + 50)};  
+        pProfile2->SetTitle(TString::Format("Eloss profile for #theta_{Lab} = %.1f #circ;distance [mm];dE/dx [MeV/%.2fmm]", theta3Lab * TMath::RadToDeg(), step));
+        FillHistogramWithUncertantyInRangeAndELoss(srim, "light", T3Lab, vertex, direction, step, pProfile2, finalPointsProfileRangeElossUncertanty, 100, 2, 0.1);
+        profilesRangeAndELossUncertanty.push_back(pProfile2);
+
+        i++;
     }
 
-    // Draw
+    // Draw the graphs
     auto* c0 {new TCanvas {"c0", "Eloss profiles"}};
     c0->DivideSquare(graphs.size());
     for(int i = 0; i < graphs.size(); i++)
@@ -157,12 +225,38 @@ void do_profiles()
         c0->cd(i + 1);
         graphs[i]->DrawClone("APL");
         gPad->Update();
-        std::cout<<finalPoints[i]<<std::endl;   
-        auto* line {new TLine {finalPoints[i], gPad->GetUymin(), finalPoints[i], gPad->GetUymax()}};
+        std::cout<<finalPointsGraph[i]<<std::endl;   
+        auto* line {new TLine {finalPointsGraph[i], gPad->GetUymin(), finalPointsGraph[i], gPad->GetUymax()}};
         line->SetLineWidth(2);
         line->Draw();
         gROOT->SetSelectedPad(nullptr);
 
+    }
+    // Draw the profiles for range uncertanty
+    auto* c1 {new TCanvas {"c1", "Eloss profiles with uncertainty"}};
+    c1->DivideSquare(profilesRangeUncertanty.size());
+    for(int i = 0; i < profilesRangeUncertanty.size(); i++)
+    {
+        c1->cd(i + 1);
+        profilesRangeUncertanty[i]->DrawClone();
+        gPad->Update();
+        auto* line {new TLine {finalPointsProfileRangeUncertanty[i], gPad->GetUymin(), finalPointsProfileRangeUncertanty[i], gPad->GetUymax()}};
+        line->SetLineWidth(2);
+        line->Draw();
+        gROOT->SetSelectedPad(nullptr);
+    }
+    // Draw the profiles for range and energy loss uncertanty
+    auto* c2 {new TCanvas {"c2", "Eloss profiles with uncertainty"}};
+    c2->DivideSquare(profilesRangeAndELossUncertanty.size());
+    for(int i = 0; i < profilesRangeAndELossUncertanty.size(); i++)
+    {
+        c2->cd(i + 1);
+        profilesRangeAndELossUncertanty[i]->DrawClone();
+        gPad->Update();
+        auto* line {new TLine {finalPointsProfileRangeElossUncertanty[i], gPad->GetUymin(), finalPointsProfileRangeElossUncertanty[i], gPad->GetUymax()}};
+        line->SetLineWidth(2);
+        line->Draw();
+        gROOT->SetSelectedPad(nullptr);
     }
 
 }
