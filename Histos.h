@@ -56,7 +56,7 @@ const ROOT::RDF::TH2DModel ThetaLabVertex {"hThetaLabVertex", "ThetaLab vs Verte
 // Efficiency
 const ROOT::RDF::TH1DModel ThetaCM {"hThetaCM", "ThetaCM;#theta_{CM} [#circ]", 600, 0, 180};
 const ROOT::RDF::TH1DModel ThetaLab {"hThetaLab", "ThetaLab;#theta_{lab} [#circ]", 600, 0, 180};
-const ROOT::RDF::TH1DModel ThetaLabHeavy {"hThetaLab", "ThetaLabHeavy;#theta_{lab} [#circ]", 200, 0, 0.3};
+const ROOT::RDF::TH1DModel ThetaLabHeavy {"hThetaLab", "ThetaLabHeavy;#theta_{lab} [#circ]", 200, 0, 10};
 const ROOT::RDF::TH1DModel PhiLab {"hPhiLab", "PhiLab;#phi_{lab} [#circ]", 600, 0, 360};
 } // namespace Histos
 

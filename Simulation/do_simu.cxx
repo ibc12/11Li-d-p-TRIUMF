@@ -6,6 +6,8 @@
 #include "ActTPCParameters.h"
 #include "ActCrossSection.h"
 #include "ActColors.h"
+#include "ActParticle.h"
+#include "ActDecayGenerator.h"
 
 #include "TCanvas.h"
 #include "TEfficiency.h"
@@ -261,6 +263,15 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
     outTree->Branch("theta3Lab", &theta3Lab_tree);
     double phi3CM_tree {};
     outTree->Branch("phi3CM", &phi3CM_tree);
+    auto* outTreeHeavy {new TTree("SimulationTTreeHeavy", "A TTree containing heavy information")};
+    double theta4Lab_tree {};
+    outTreeHeavy->Branch("theta4Lab", &theta4Lab_tree);
+    double phi4Lab_tree {};
+    outTreeHeavy->Branch("phi4Lab", &phi4Lab_tree);
+    double T4Lab_tree {};
+    outTreeHeavy->Branch("T4Lab", &T4Lab_tree);
+    ROOT::Math::XYZPoint RP_tree {};
+    outTreeHeavy->Branch("RP", &RP_tree);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
     bool setRandomEx {false};
@@ -347,9 +358,9 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
         hPhiCM->Fill(phi3CM * TMath::RadToDeg());
         XYZVector direction {TMath::Cos(theta3Lab), TMath::Sin(theta3Lab) * TMath::Sin(phi3Lab),
                              TMath::Sin(theta3Lab) * TMath::Cos(phi3Lab)};
-        // Analysis of heavy particle range 
+        // Analysis of heavy particle range, 12Li decays to 11Li
         double theta4Lab {kin->GetTheta4Lab()};
-        hTheta4Lab->Fill(theta4Lab);
+        hTheta4Lab->Fill(theta4Lab * TMath::RadToDeg());
         auto phi4Lab {kin->GetPhi4Lab()};
         XYZVector directionHeavy {TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
                              TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab)};
@@ -573,8 +584,16 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
             theta3Lab_tree = theta3Lab * TMath::RadToDeg();
             phi3CM_tree = phi3CM;
             outTree->Fill();
+            theta4Lab_tree = theta4Lab;
+            phi4Lab_tree = phi4Lab;
+            T4Lab_tree = T4Lab;
+            RP_tree = vertex;
+            outTreeHeavy->Fill();
         }
     }
+
+    outFile->Write();
+    outFile->Close();
 
     // Compute efficiency
     auto* effCM {new TEfficiency {*hThetaCM, *hThetaCMAll}};

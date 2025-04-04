@@ -9,6 +9,8 @@
 #include "TROOT.h"
 #include "Math/Point3D.h"
 #include "TProfile.h"
+#include "TSpline.h"
+#include "TLegend.h"
 
 #include "ActSRIM.h"
 #include "ActKinematics.h"
@@ -149,15 +151,67 @@ void FillHistogramWithUncertantyInRangeAndELoss (ActPhysics::SRIM* srim, const s
     }
 }
 
+double plotSplinesAndRangeValue(TProfile* profile) {
+    if (!profile) {
+        std::cerr << "Error: TProfile no válido." << std::endl;
+        return -1;
+    }
+
+    int nPoints = profile->GetNbinsX();
+    std::vector<double> x(nPoints), y(nPoints);
+    for (int i = 1; i <= nPoints; ++i) {
+        x[i - 1] = profile->GetBinCenter(i);
+        y[i - 1] = profile->GetBinContent(i);
+    }
+
+    TGraph graph(nPoints, x.data(), y.data());
+    TSpline3* spline = new TSpline3("spline", &graph);
+
+    // Get max value
+    double maxVal = profile->GetMaximum();
+    // std::cout << "Máximo: " << maxVal << std::endl;
+    // Get max position
+    double maxPos = profile->GetBinCenter(profile->GetMaximumBin());
+
+    // Find point where the spline is half the maximum only for x > maxPos
+    double halfMax = maxVal / 2;
+    double halfMaxPos = -1;
+    for (int i = 1; i <= nPoints; ++i) {
+        if (x[i - 1] > maxPos) {
+            double ySpline = spline->Eval(x[i - 1]);
+            if (ySpline < halfMax) {
+                halfMaxPos = x[i - 1];
+                break;
+            }
+        }
+    }
+    
+
+    profile->SetLineColor(kBlue);
+    profile->Draw();
+
+    spline->SetLineColor(kRed);
+    spline->Draw("same");
+
+    if (halfMaxPos != -1) {
+        TLine* line = new TLine(halfMaxPos, profile->GetMinimum(), halfMaxPos, profile->GetMaximum());
+        line->SetLineColor(kGreen);
+        line->SetLineStyle(2);
+        line->SetLineWidth(2);
+        line->Draw("same");
+    }
+
+    return halfMaxPos;
+}
 
 void do_profiles() 
 {
     // SRIM
     auto* srim {new ActPhysics::SRIM};
-    srim->SetUseSpline(false);
-    srim->ReadTable("light", "../SRIM files/proton_900mb_CF4_95-5.txt");
-    srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_95-5.txt");
-    srim->ReadTable("heavy", "../SRIM files/12Li_900mb_CF4_95-5.txt");
+    srim->SetUseSpline(true);
+    srim->ReadTable("light", "../SRIM files/proton_900mb_CF4_90-10.txt");
+    srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_90-10.txt");
+    srim->ReadTable("heavy", "../SRIM files/12Li_900mb_CF4_90-10.txt");
 
     // Kinematics
     const std::string& beam {"11Li"};
@@ -189,6 +243,8 @@ void do_profiles()
         // Get the lab angle and energy
         double theta3Lab {kin->GetTheta3Lab()};
         double T3Lab {kin->GetT3Lab()};
+
+        std::cout << "Theta3Lab: " << theta3Lab << ", T3Lab: " << T3Lab << ", Range: " << srim->EvalRange("light", T3Lab)<< std::endl;
 
         XYZPoint vertex {128, 128, 128};
         XYZVector direction {TMath::Cos(theta3Lab), TMath::Sin(theta3Lab) * TMath::Sin(phi3CM),
@@ -256,7 +312,20 @@ void do_profiles()
         auto* line {new TLine {finalPointsProfileRangeElossUncertanty[i], gPad->GetUymin(), finalPointsProfileRangeElossUncertanty[i], gPad->GetUymax()}};
         line->SetLineWidth(2);
         line->Draw();
+
+        double halfMaxPosition = plotSplinesAndRangeValue(profilesRangeAndELossUncertanty[i]);
+        std::cout << "Half max position: " << halfMaxPosition << ", T3Fit: " << srim->EvalEnergy("light", halfMaxPosition) << std::endl;       
+        
+
         gROOT->SetSelectedPad(nullptr);
+    }
+    // Draw Splines
+    auto c3 {new TCanvas {"c3", "Splines"}};
+    c3->DivideSquare(profilesRangeAndELossUncertanty.size());
+    for(int i = 0; i < profilesRangeAndELossUncertanty.size(); i++)
+    {
+        c3->cd(i + 1);
+        double halfMaxPosition = plotSplinesAndRangeValue(profilesRangeAndELossUncertanty[i]);
     }
 
 }
