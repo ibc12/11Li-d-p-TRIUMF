@@ -45,6 +45,10 @@ const ROOT::RDF::TH1DModel RP_eff {"hRPeff", "RPeff;RP.X() [mm]", 13, 0, 260};
 // Kin
 const ROOT::RDF::TH2DModel Kin {"hKin", "Kinematics;#theta_{light, Lab} [#circ];E_{light} [MeV]", 350, 0, 165, 350, 0,
                                 40};
+
+// Kin heavy
+const ROOT::RDF::TH2DModel KinHeavy {"hKinHeavy", "Kinematics;#theta_{heavy, Lab} [#circ];E_{heavy} [MeV]", 100, 0, 20, 350, 20,
+                                100};
                                 
 // Theta Lab vs Theta CM 
 const ROOT::RDF::TH2DModel ThetaCMThetaLab {"hThetaCMThetaLab", "ThetaCM vs ThetaLab; #theta_{CM} [deg]; #theta_{Lab} [deg]",

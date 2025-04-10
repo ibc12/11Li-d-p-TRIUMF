@@ -5,13 +5,11 @@
 #include <vector>
 
 #include "./do_simu.cxx"
+#include "./do_simu_inelastic.cxx"
+#include "./do_simu_elastic.cxx"
 
 void runner(TString what = "plot", bool inspect = true)
 {
-    std::string beam {"11Li"};
-    std::string target {"2H"};
-    std::string light {"1H"};
-    std::string heavy {"12Li"};
     // Beam energy
     double Tbeam {11 * 7.5}; // MeV
     // Neutron and Proton phase space
@@ -31,10 +29,46 @@ void runner(TString what = "plot", bool inspect = true)
     // Run simu or plot
     if(what.Contains("simu"))
     {
+        std::string beam {"11Li"};
+        std::string target {"2H"};
+        std::string light {"1H"};
+        std::string heavy {"12Li"};
         for(const auto& ex : Exs)
         {
 
             do_simu(beam, target, light, heavy, neutronPS, protonPS ,Tbeam, ex, inspect);
+            // auto str {TString::Format("root -l -b -x -q \'triumf.cxx(\"%s\",\"%s\",\"%s\",%f,%f,%d)\'", beam.c_str(),
+            //                           target.c_str(), light.c_str(), Tbeam, ex, inspect)};
+            if(inspect)
+                break; // inspect: to debug simulation
+        }
+    }
+    else if(what.Contains("Simu_inelastic"))
+    {
+        std::string beam {"11Li"};
+        std::string target {"2H"};
+        std::string light {"2H"};
+        std::string heavy {"11Li"};
+        for(const auto& ex : Exs)
+        {
+
+            do_simu_inelastic(beam, target, light, heavy, neutronPS, protonPS ,Tbeam, ex, inspect);
+            // auto str {TString::Format("root -l -b -x -q \'triumf.cxx(\"%s\",\"%s\",\"%s\",%f,%f,%d)\'", beam.c_str(),
+            //                           target.c_str(), light.c_str(), Tbeam, ex, inspect)};
+            if(inspect)
+                break; // inspect: to debug simulation
+        }
+    }
+    else if(what.Contains("Simu_Elastic"))
+    {
+        std::string beam {"11Li"};
+        std::string target {"2H"};
+        std::string light {"2H"};
+        std::string heavy {"11Li"};
+        for(const auto& ex : Exs)
+        {
+
+            do_simu_elastic(beam, target, light, heavy, neutronPS, protonPS ,Tbeam, ex, inspect);
             // auto str {TString::Format("root -l -b -x -q \'triumf.cxx(\"%s\",\"%s\",\"%s\",%f,%f,%d)\'", beam.c_str(),
             //                           target.c_str(), light.c_str(), Tbeam, ex, inspect)};
             if(inspect)
