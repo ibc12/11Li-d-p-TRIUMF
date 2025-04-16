@@ -48,7 +48,7 @@ void runner(TString what = "plot", bool inspect = true)
         std::string beam {"11Li"};
         std::string target {"2H"};
         std::string light {"2H"};
-        std::string heavy {"11Li"};
+        std::string heavy {"9Li"};
         for(const auto& ex : Exs)
         {
 

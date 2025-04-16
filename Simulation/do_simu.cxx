@@ -111,11 +111,18 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
 
     // SRIM
     auto* srim {new ActPhysics::SRIM};
+    // Transfer d,p
     srim->ReadTable("light", "../SRIM files/proton_900mb_CF4_90-10.txt");
     srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_90-10.txt");
     srim->ReadTable("heavy", "../SRIM files/12Li_900mb_CF4_90-10.txt");
     srim->ReadTable("lightInSil", "../SRIM files/protons_silicon.txt");
     srim->ReadTable("heavyInSil", "../SRIM files/12Li_silicon.txt");
+    // Transfer d,t
+    // srim->ReadTable("light", "../SRIM files/3H_900mb_CF4_90-10.txt");
+    // srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_90-10.txt");
+    // srim->ReadTable("heavy", "../SRIM files/10Li_900mb_CF4_90-10.txt");
+    // srim->ReadTable("lightInSil", "../SRIM files/3H_silicon.txt");
+    // srim->ReadTable("heavyInSil", "../SRIM files/10Li_silicon.txt");
 
     // Kinematics
     auto* kin {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
@@ -274,10 +281,10 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
     outTreeHeavy->Branch("RP", &RP_tree);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
-    bool setRandomEx {false};
+    bool setRandomEx {true};
     if(setRandomEx)
     {
-        Ex = 4.;
+        Ex = 0.;
     }
 
     // RUN!
