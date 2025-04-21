@@ -120,6 +120,8 @@ void heavyDecay ()
 
     // kinematics
     auto kinElastic {new ActPhysics::Kinematics {"11Li(d,d)@82.5|0"}};
+    auto kinTransfer {new ActPhysics::Kinematics {"11Li(d,p)@82.5|0"}};
+    auto kinInelastic {new ActPhysics::Kinematics {"11Li(d,d)@82.5|1"}}; // Ex centered at (1.26642 + 0.36928) / 2, and is a gaussian distribution of sigma 0.2, so will not be accurate
 
     // Read TTree in a for loop and see decay for each event for TRANSFER
     double theta4Lab {};
@@ -240,17 +242,10 @@ void heavyDecay ()
     for(int i = 0; i < treeInelastic->GetEntries(); i++)
     {
         treeInelastic->GetEntry(i);
-        // Let's supose that the 11Li decay into 9Li
-        hkin11LiInelastic->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
-        decayGen9Li->SetDecay(T4Lab, theta4Lab, phi4Lab);
-        decayGen9Li->Generate();
-        // Get the decay products
-        auto LorentzVectorLi9 {decayGen9Li->GetLorentzVector(0)};
-        auto thetaLi9 {LorentzVectorLi9->Theta()};
-        auto phiLi9 {LorentzVectorLi9->Phi()};
-        auto TLi9 {LorentzVectorLi9->E() - LorentzVectorLi9->M()};
-        ROOT::Math::XYZVector directionLi9 {TMath::Cos(thetaLi9), TMath::Sin(thetaLi9) * TMath::Sin(phiLi9),
-                              TMath::Sin(thetaLi9) * TMath::Cos(phiLi9)};
+        // There isno decay from 11Li to 9Li, phase space directly
+        // hkin11LiInelastic->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
+        ROOT::Math::XYZVector directionLi9 {TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
+                              TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab)};
 
         // Check hit for the 11Li 
         int silIndex = -1;
@@ -276,8 +271,8 @@ void heavyDecay ()
 
         if(layerHit == "f2")
         {
-            hkin9Li->Fill(thetaLi9 * TMath::RadToDeg(), TLi9);
-            hkin->Fill(thetaLi9 * TMath::RadToDeg(), TLi9);
+            hkin9Li->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
+            hkin->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
         }
     }
     // Loop over the elastic events
@@ -350,14 +345,17 @@ void heavyDecay ()
     ckins->DivideSquare(6);
     ckins->cd(1);
     hkin12Li->DrawClone("colz");
+    kinTransfer->GetKinematicLine4()->Draw("l");
     ckins->cd(4);
     hkin11Li->DrawClone("colz");
     ckins->cd(2);
     hkin11LiInelastic->DrawClone("colz");
+    kinInelastic->GetKinematicLine4()->Draw("l");
     ckins->cd(5);
     hkin9Li->DrawClone("colz");
     ckins->cd(3);
     hkin11LiElastic->DrawClone("colz");
+    kinElastic->GetKinematicLine4()->Draw("l");
     ckins->cd(6);
     hkin->DrawClone("colz");
     }
