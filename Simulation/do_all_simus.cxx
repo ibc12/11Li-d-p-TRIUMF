@@ -1,5 +1,5 @@
-#ifndef triumf_inelastic_cxx
-#define triumf_inelastic_cxx
+#ifndef triumf_all_cxx
+#define triumf_all_cxx
 #include "ActKinematics.h"
 #include "ActSRIM.h"
 #include "ActSilSpecs.h"
@@ -73,7 +73,7 @@ using XYZVector = ROOT::Math::XYZVector;
 
 
 
-void do_simu_inelastic(const std::string& beam, const std::string& target, const std::string& light, const std::string& heavy, int neutronPS, int protonPS, double Tbeam, double Ex, bool inspect)
+void do_all_simus(const std::string& beam, const std::string& target, const std::string& light, const std::string& heavy, int neutronPS, int protonPS, double Tbeam, double Ex, bool inspect)
 {
     // Ex = 0.435;
     // Set number of iterations
@@ -125,7 +125,6 @@ void do_simu_inelastic(const std::string& beam, const std::string& target, const
     // Kinematics
     // auto* kin {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
     auto* kinGen {new ActSim::KinematicGenerator {beam, target, light, heavy, protonPS, neutronPS}};
-    kinGen->Print();
 
     // Declare histograms
     auto hKin {Histos::Kin.GetHistogram()};

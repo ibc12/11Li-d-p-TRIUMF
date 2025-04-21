@@ -7,6 +7,7 @@
 #include "./do_simu.cxx"
 #include "./do_simu_inelastic.cxx"
 #include "./do_simu_elastic.cxx"
+#include "./do_all_simus.cxx"
 
 void runner(TString what = "plot", bool inspect = true)
 {
@@ -48,10 +49,10 @@ void runner(TString what = "plot", bool inspect = true)
         std::string beam {"11Li"};
         std::string target {"2H"};
         std::string light {"2H"};
-        std::string heavy {"9Li"};
+        std::string heavy {"11Li"};
         for(const auto& ex : Exs)
         {
-
+            neutronPS = 2;
             do_simu_inelastic(beam, target, light, heavy, neutronPS, protonPS ,Tbeam, ex, inspect);
             // auto str {TString::Format("root -l -b -x -q \'triumf.cxx(\"%s\",\"%s\",\"%s\",%f,%f,%d)\'", beam.c_str(),
             //                           target.c_str(), light.c_str(), Tbeam, ex, inspect)};
@@ -69,6 +70,22 @@ void runner(TString what = "plot", bool inspect = true)
         {
 
             do_simu_elastic(beam, target, light, heavy, neutronPS, protonPS ,Tbeam, ex, inspect);
+            // auto str {TString::Format("root -l -b -x -q \'triumf.cxx(\"%s\",\"%s\",\"%s\",%f,%f,%d)\'", beam.c_str(),
+            //                           target.c_str(), light.c_str(), Tbeam, ex, inspect)};
+            if(inspect)
+                break; // inspect: to debug simulation
+        }
+    }
+    else if(what.Contains("All_SIMU"))
+    {
+        std::string beam {"11Li"};
+        std::string target {"2H"};
+        std::string light {"2H"};
+        std::string heavy {"9Li"};
+        for(const auto& ex : Exs)
+        {
+            neutronPS = 2;
+            do_all_simus(beam, target, light, heavy, neutronPS, protonPS ,Tbeam, ex, inspect);
             // auto str {TString::Format("root -l -b -x -q \'triumf.cxx(\"%s\",\"%s\",\"%s\",%f,%f,%d)\'", beam.c_str(),
             //                           target.c_str(), light.c_str(), Tbeam, ex, inspect)};
             if(inspect)
