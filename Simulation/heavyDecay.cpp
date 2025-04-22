@@ -7,6 +7,7 @@
 #include "ActSilSpecs.h"
 #include "ActTPCParameters.h"
 #include "ActKinematics.h"
+#include "ActLine.h"
 
 #include "TFile.h"
 #include "TCanvas.h"
@@ -22,6 +23,24 @@
 
 
 #include "../Histos.h"
+
+ROOT::Math::XYZPointF ComputeLimitPoint(ROOT::Math::XYZVector directionHeavy, ROOT::Math::XYZPoint RP)
+{
+    // Compute the distance from RP to end of pad plane 0<X<256 0<Y<256 0<Z<256
+
+    // Define the direction given by theta and phi
+    ROOT::Math::XYZPointF firstPoint {RP};
+    ROOT::Math::XYZPointF secondPoint {RP + 100 * directionHeavy};
+
+    // Let's create a line and then compute the point where x=256 (low angle in heavy, so x will be always the limit)
+    auto* line {new ActRoot::Line(firstPoint, secondPoint)};
+
+    auto pointLimit {line->MoveToX(256)};
+
+    double distance {(RP - pointLimit).R()}; // distance in mm
+    delete line;
+    return pointLimit;
+}
 
 void heavyDecay ()
 {
@@ -41,7 +60,7 @@ void heavyDecay ()
         return;
     }
     // Get tree from file of inelastic
-    TString fileNameInelastic ("../Outputs/7.5MeV/inelastic_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
+    TString fileNameInelastic ("../Outputs/7.5MeV/inelastic_TRIUMF_Eex_0.000_nPS_2_pPS_0.root");
     auto* fileInelastic {new TFile(fileNameInelastic, "read")};
     if (!fileInelastic || fileInelastic->IsZombie()) 
     {
@@ -99,8 +118,11 @@ void heavyDecay ()
 
     // SRIM
     auto* srim {new ActPhysics::SRIM};
+    srim->ReadTable("9LiGas", "../SRIM files/9Li_900mb_CF4_90-10.txt");
     srim->ReadTable("11LiGas", "../SRIM files/11Li_900mb_CF4_90-10.txt");
     srim->ReadTable("12LiGas", "../SRIM files/12Li_900mb_CF4_90-10.txt");
+    srim->ReadTable("9LiInSil", "../SRIM files/9Li_silicon.txt");
+    srim->ReadTable("11LiInSil", "../SRIM files/11Li_silicon.txt");
     srim->ReadTable("12LiInSil", "../SRIM files/12Li_silicon.txt");
 
     // Particles for decays
@@ -166,9 +188,15 @@ void heavyDecay ()
     hkin11LiInelastic->SetTitle("Heavy kinematics for 11Li inelastic");
     auto hkin11LiElastic {Histos::KinHeavy.GetHistogram()};
     hkin11LiElastic->SetTitle("Heavy kinematics for 11Li elastic");
+    // PID's
+    auto hPIDtransfer {Histos::PID.GetHistogram()};
+    hPIDtransfer->SetTitle("PID for transfer");
+    auto hPIDinelastic {Histos::PID.GetHistogram()};
+    hPIDinelastic->SetTitle("PID for inelastic");
+    auto hPIDelastic {Histos::PID.GetHistogram()};
+    hPIDelastic->SetTitle("PID for elastic");
 
-    std::vector<TLine*> linesF0 {};
-    std::vector<TLine*> linesF2 {};
+    
     
     // Loop over the tree
     for(int i = 0; i < treeTransfer->GetEntries(); i++)
@@ -187,25 +215,6 @@ void heavyDecay ()
         ROOT::Math::XYZVector directionLi11 {TMath::Cos(thetaLi11), TMath::Sin(thetaLi11) * TMath::Sin(phiLi11),
                               TMath::Sin(thetaLi11) * TMath::Cos(phiLi11)};
 
-        // Draw lines to check hits
-        // double x0 = RP->X();
-        // double y0 = RP->Y();
-        // double z0 = RP->Z();
-        // // Definir la dirección escalada (para visualizar mejor)
-        // double scale = 160.0;  // Ajusta el tamaño de la línea
-        // double x1 = x0 + scale * directionLi11.X();
-        // double y1 = y0 + scale * directionLi11.Y();
-        // double z1 = z0 + scale * directionLi11.Z();
-        // // Crear la línea 3D
-        // double x[] = {x0, x1};
-        // double y[] = {y0, y1};
-        // double z[] = {z0, z1};
-        // TPolyLine3D* line = new TPolyLine3D(2, x, y, z);
-        // line->SetLineColor(kRed);
-        // line->SetLineWidth(2);
-        // line->DrawClone("same");
-
-
         // Check hit for the 11Li 
         int silIndex = -1;
         ROOT::Math::XYZPoint silPoint;
@@ -219,6 +228,26 @@ void heavyDecay ()
                 break;
             }                
         }
+        // Calculation of DeltaE-E
+        auto rangeInitial {srim->EvalRange("11LiGas", T4Lab)};
+        // First, slow inside detector volume
+        auto limitPointGas {ComputeLimitPoint(directionLi11, *RP)};
+        double distanceInside {(*RP - limitPointGas).R()};
+        auto energyAfterInside {srim->SlowWithStraggling("11LiGas", T4Lab, distanceInside)};
+        // auto DeltaE {T4Lab - energyAfterInside};
+        // Second, slow in gas before silicon
+        auto distanceInterGas {(limitPointGas - silPoint).R()};
+        auto energyAfterInterGas {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceInterGas)};
+        auto DeltaE {T4Lab - energyAfterInterGas};
+        // Finally, slow in silicon
+        auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi11)};
+        if(energyAfterSil > 0)
+        {
+            std::cout <<"Initial Energy: "<< T4Lab << " Energy in silicon: " << energyAfterSil << " Angle: " << thetaLi11 * TMath::RadToDeg() <<'\n';
+        }
+        auto eLoss {energyAfterInterGas - energyAfterSil};
+
+        // Fill SP histos
         if(layerHit == "f0")
         {
             hSPf0->Fill(silPoint.Y(), silPoint.Z());
@@ -227,8 +256,7 @@ void heavyDecay ()
         {
             hSPf2->Fill(silPoint.Y(), silPoint.Z());
         }
-
-        // Fill histos
+        // Fill rest histos
         hTheta12Li->Fill(theta4Lab * TMath::RadToDeg());
         hTheta11Li->Fill(thetaLi11 * TMath::RadToDeg());
         if(layerHit == "f2")
@@ -236,6 +264,8 @@ void heavyDecay ()
             hkin11Li->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
             hkin->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
         }
+        // PID
+        hPIDtransfer->Fill(eLoss, DeltaE);
 
     }
     // Loop over the tree of inelastic
@@ -260,6 +290,22 @@ void heavyDecay ()
                 break;
             }                
         }
+        // Calculation of DeltaE-E
+        auto rangeInitial {srim->EvalRange("9LiGas", T4Lab)};
+        // First, slow inside detector volume
+        auto limitPointGas {ComputeLimitPoint(directionLi9, *RP)};
+        double distanceInside {(*RP - limitPointGas).R()};
+        auto energyAfterInside {srim->SlowWithStraggling("9LiGas", T4Lab, distanceInside)};
+        auto DeltaE {T4Lab - energyAfterInside};
+        // Second, slow in gas before silicon
+        auto distanceInterGas {(limitPointGas - silPoint).R()};
+        auto energyAfterInterGas {srim->SlowWithStraggling("9LiGas", energyAfterInside, distanceInterGas)};
+        // Finally, slow in silicon
+        auto energyAfterSil {srim->SlowWithStraggling("9LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness())};
+        auto eLoss {energyAfterInterGas - energyAfterSil};
+
+
+        // Fill all the histos
         if(layerHit == "f0")
         {
             hSPf0->Fill(silPoint.Y(), silPoint.Z());
@@ -274,13 +320,15 @@ void heavyDecay ()
             hkin9Li->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
             hkin->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
         }
+        // PID
+        hPIDinelastic->Fill(eLoss, DeltaE);
     }
     // Loop over the elastic events
     for(int i = 0; i < treeElastic->GetEntries(); i++)
     {
         treeElastic->GetEntry(i);
         // For elastic there is no decay
-        ROOT::Math::XYZVector directionLi9 {TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
+        ROOT::Math::XYZVector directionLi11 {TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
                               TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab)};
 
         // Check hit for the 11Li 
@@ -289,13 +337,29 @@ void heavyDecay ()
         std::string layerHit;
         for(auto layer : silLayers)
         {
-            std::tie(silIndex, silPoint) = sils->FindSPInLayer(layer, *RP, directionLi9);
+            std::tie(silIndex, silPoint) = sils->FindSPInLayer(layer, *RP, directionLi11);
             if(silIndex != -1)
             {
                 layerHit = layer;
                 break;
             }                
         }
+        // Calculation of DeltaE-E
+        auto rangeInitial {srim->EvalRange("11LiGas", T4Lab)};
+        // First, slow inside detector volume
+        auto limitPointGas {ComputeLimitPoint(directionLi11, *RP)};
+        double distanceInside {(*RP - limitPointGas).R()};
+        auto energyAfterInside {srim->SlowWithStraggling("11LiGas", T4Lab, distanceInside)};
+        auto DeltaE {T4Lab - energyAfterInside};
+        // Second, slow in gas before silicon
+        auto distanceInterGas {(limitPointGas - silPoint).R()};
+        auto energyAfterInterGas {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceInterGas)};
+        // Finally, slow in silicon
+        auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness())};
+        auto eLoss {energyAfterInterGas - energyAfterSil};
+
+
+        // Fill all the histos
         if(layerHit == "f0")
         {
             hSPf0->Fill(silPoint.Y(), silPoint.Z());
@@ -310,6 +374,8 @@ void heavyDecay ()
             hkin11LiElastic->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
             hkin->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
         }
+        // PID
+        hPIDelastic->Fill(eLoss, DeltaE);
     }
 
 
@@ -358,6 +424,15 @@ void heavyDecay ()
     kinElastic->GetKinematicLine4()->Draw("l");
     ckins->cd(6);
     hkin->DrawClone("colz");
+
+    auto* cPIDs {new TCanvas {"cPIDs", "PID"}};
+    cPIDs->DivideSquare(3);
+    cPIDs->cd(1);
+    hPIDtransfer->DrawClone("colz");
+    cPIDs->cd(2);
+    hPIDinelastic->DrawClone("colz");
+    cPIDs->cd(3);
+    hPIDelastic->DrawClone("colz");
     }
 
 #endif
