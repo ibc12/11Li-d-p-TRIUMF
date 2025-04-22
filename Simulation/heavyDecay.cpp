@@ -195,8 +195,18 @@ void heavyDecay ()
     hPIDinelastic->SetTitle("PID for inelastic");
     auto hPIDelastic {Histos::PID.GetHistogram()};
     hPIDelastic->SetTitle("PID for elastic");
+    auto hPIDtransferLength {Histos::PIDlength.GetHistogram()};
+    hPIDtransferLength->SetTitle("PID for transfer length");
+    auto hPIDinelasticLength {Histos::PIDlength.GetHistogram()};
+    hPIDinelasticLength->SetTitle("PID for inelastic length");
+    auto hPIDelasticLength {Histos::PIDlength.GetHistogram()};
+    hPIDelasticLength->SetTitle("PID for elastic length");
 
-    
+    // Histos for debuging
+    auto hTheta11LiDebug {Histos::ThetaLabHeavy.GetHistogram()};
+    hTheta11LiDebug->SetTitle("ThetaLab for 11Li");
+    auto hkin11LiDebug {Histos::KinHeavy.GetHistogram()};
+    hkin11LiDebug->SetTitle("Heavy kinematics for 11Li");
     
     // Loop over the tree
     for(int i = 0; i < treeTransfer->GetEntries(); i++)
@@ -228,24 +238,36 @@ void heavyDecay ()
                 break;
             }                
         }
+        if(silIndex == -1)
+        {
+            continue; // If a silicon is not reached, don't continue with punchthough calculation
+        }
         // Calculation of DeltaE-E
-        auto rangeInitial {srim->EvalRange("11LiGas", T4Lab)};
+        // auto rangeInitial {srim->EvalRange("11LiGas", TLi11)};
         // First, slow inside detector volume
         auto limitPointGas {ComputeLimitPoint(directionLi11, *RP)};
         double distanceInside {(*RP - limitPointGas).R()};
-        auto energyAfterInside {srim->SlowWithStraggling("11LiGas", T4Lab, distanceInside)};
-        // auto DeltaE {T4Lab - energyAfterInside};
+        auto energyAfterInside {srim->SlowWithStraggling("11LiGas", TLi11, distanceInside)};
+        // auto DeltaE {TLi11 - energyAfterInside};
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
         auto energyAfterInterGas {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceInterGas)};
-        auto DeltaE {T4Lab - energyAfterInterGas};
+        auto DeltaE {TLi11 - energyAfterInterGas};
         // Finally, slow in silicon
         auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi11)};
+        auto eLoss {energyAfterInterGas - energyAfterSil};
         if(energyAfterSil > 0)
         {
-            std::cout <<"Initial Energy: "<< T4Lab << " Energy in silicon: " << energyAfterSil << " Angle: " << thetaLi11 * TMath::RadToDeg() <<'\n';
+            std::cout <<" Energy in silicon: " << energyAfterSil << " Angle: " << thetaLi11 * TMath::RadToDeg() << " Layer: " << layerHit.size() <<'\n';
+            hTheta11LiDebug->Fill(thetaLi11 * TMath::RadToDeg());
+            hkin11LiDebug->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
         }
-        auto eLoss {energyAfterInterGas - energyAfterSil};
+        else
+        {
+            hPIDtransfer->Fill(eLoss, DeltaE);
+            hPIDtransferLength->Fill(eLoss, DeltaE / distanceInside);
+        }
+        
 
         // Fill SP histos
         if(layerHit == "f0")
@@ -265,7 +287,7 @@ void heavyDecay ()
             hkin->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
         }
         // PID
-        hPIDtransfer->Fill(eLoss, DeltaE);
+        
 
     }
     // Loop over the tree of inelastic
@@ -322,6 +344,7 @@ void heavyDecay ()
         }
         // PID
         hPIDinelastic->Fill(eLoss, DeltaE);
+        hPIDinelasticLength->Fill(eLoss, DeltaE / distanceInside);
     }
     // Loop over the elastic events
     for(int i = 0; i < treeElastic->GetEntries(); i++)
@@ -376,6 +399,7 @@ void heavyDecay ()
         }
         // PID
         hPIDelastic->Fill(eLoss, DeltaE);
+        hPIDelasticLength->Fill(eLoss, DeltaE / distanceInside);
     }
 
 
@@ -426,13 +450,19 @@ void heavyDecay ()
     hkin->DrawClone("colz");
 
     auto* cPIDs {new TCanvas {"cPIDs", "PID"}};
-    cPIDs->DivideSquare(3);
+    cPIDs->DivideSquare(6);
     cPIDs->cd(1);
     hPIDtransfer->DrawClone("colz");
     cPIDs->cd(2);
     hPIDinelastic->DrawClone("colz");
     cPIDs->cd(3);
     hPIDelastic->DrawClone("colz");
+    cPIDs->cd(4);
+    hPIDtransferLength->DrawClone("colz");
+    cPIDs->cd(5);
+    hPIDinelasticLength->DrawClone("colz");
+    cPIDs->cd(6);
+    hPIDelasticLength->DrawClone("colz");
     }
 
 #endif
