@@ -13,6 +13,7 @@
 #include "TRandom3.h"
 #include "TCanvas.h"
 #include "TPolyLine3D.h"
+#include "TFile.h"
 
 #include "../Histos.h"
 
@@ -101,15 +102,10 @@ void checkPID()
 
     for(int i = 0; i < 100000; i++)
     {
-        double TLi11 {}; // MeV
-        if(gRandom->Uniform() < 2)
-        {
-            TLi11 = gRandom->Gaus(50, 80);
-        }
-        else
-        {
-            TLi11 = gRandom->Gaus(50, 60);
-        }
+        double TLi11 {gRandom->Uniform(50, 80)}; // MeV
+        
+        vertex.SetX(gRandom->Uniform(0,256));
+        
         double phiLi11 {gRandom->Uniform(0, 2 * TMath::Pi())};
         double thetaLi11 {gRandom->Uniform(3 * TMath::DegToRad(), 7 * TMath::DegToRad())};
         std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
@@ -170,23 +166,23 @@ void checkPID()
         // Finally, slow in silicon
         auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi11)};
 
-        double eLoss {};
-        if(layerHit == "f0")
-        {
-            eLoss = energyAfterInterGas - energyAfterSil;
-        }
-        if(layerHit == "f2")
-        {
-            double distanceBorderTof0 {ComputeDistancef0toPoint(directionLi11, limitPointGas)};
-            double distancef0f2 {ComputeDistancef0toPoint(directionLi11, silPoint)};
-            
-            double energyJustBeforef0 {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceBorderTof0)};
-            double energyJustBeforef2 {srim->SlowWithStraggling("11LiGas", energyJustBeforef0, distancef0f2)};
-
-            double eLossBetweenf0Andf2 = energyJustBeforef0 - energyJustBeforef2;
-
-            eLoss = energyAfterInterGas - energyAfterSil;
-        }
+        double eLoss {energyAfterInterGas - energyAfterSil};
+        //if(layerHit == "f0")
+        //{
+        //    eLoss = energyAfterInterGas - energyAfterSil;
+        //}
+        //if(layerHit == "f2")
+        //{
+        //    double distanceBorderTof0 {ComputeDistancef0toPoint(directionLi11, limitPointGas)};
+        //    double distancef0f2 {ComputeDistancef0toPoint(directionLi11, silPoint)};
+        //    
+        //    double energyJustBeforef0 {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceBorderTof0)};
+        //    double energyJustBeforef2 {srim->SlowWithStraggling("11LiGas", energyJustBeforef0, distancef0f2)};
+        //    
+        //    double eLossBetweenf0Andf2 = energyJustBeforef0 - energyJustBeforef2;
+        //
+        //    eLoss = energyAfterInterGas - energyAfterSil;
+        //}
         
 
 
@@ -230,5 +226,14 @@ void checkPID()
     hPIDLength->DrawClone("colz");
 
     
+    // Save histos
+    TFile* outFile = new TFile("../DebugOutputs/checkPID_output11Li.root", "RECREATE");
+    hkinLi->Write("hkinLi");
+    hPID->Write("hPID");
+    hPIDLength->Write("hPIDLength");
+    outFile->Close();
+    delete outFile;
+
+
 }
 #endif
