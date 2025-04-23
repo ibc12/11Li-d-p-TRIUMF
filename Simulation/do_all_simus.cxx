@@ -29,80 +29,75 @@
 #include <unordered_map>
 
 #include "../Histos.h"
-#include "./do_simu.cxx"
 
 using XYZPoint = ROOT::Math::XYZPoint;
 using XYZVector = ROOT::Math::XYZVector;
 
+XYZPoint SampleVertex(ActRoot::TPCParameters *tpc)
+{
+    // Define sigmas along Y and Z
+    double sigmaY{4};
+    double sigmaZ{4};
+    auto y{gRandom->Gaus(tpc->Y() / 2, sigmaY)};
+    auto z{gRandom->Gaus(tpc->Z() / 2, sigmaZ)};
+    auto x{gRandom->Uniform() * tpc->X()};
+    return {x, y, z};
+}
 
-// Already defined in do_simu.cxx
-// XYZPoint SampleVertex(ActRoot::TPCParameters* tpc)
-// {
-//     // Define sigmas along Y and Z
-//     double sigmaY {4};
-//     double sigmaZ {4};
-//     auto y {gRandom->Gaus(tpc->Y() / 2, sigmaY)};
-//     auto z {gRandom->Gaus(tpc->Z() / 2, sigmaZ)};
-//     auto x {gRandom->Uniform() * tpc->X()};
-//     return {x, y, z};
-// }
-// 
-// std::pair<double, double> SampleCM()
-// {
-//     auto theta {TMath::ACos(gRandom->Uniform(-1, 1))};
-//     auto phi {gRandom->Uniform(0, TMath::TwoPi())};
-//     return {theta, phi};
-// }
-// 
-// void ApplyNaN(double& e, double t = 0, const std::string& comment = "stopped")
-// {
-//     if(e <= t)
-//         e = std::nan(comment.c_str());
-// }
-// 
-// void ApplyThetaRes(double& theta)
-// {
-//     double sigma {0.95 / 2.355}; // FWHM to sigma
-//     theta = gRandom->Gaus(theta, sigma * TMath::DegToRad());
-// }
-// 
-// double RandomizeBeamEnergy(double Tini, double sigma)
-// {
-//     return gRandom->Gaus(Tini, sigma);
-// }
+std::pair<double, double> SampleCM()
+{
+    auto theta{TMath::ACos(gRandom->Uniform(-1, 1))};
+    auto phi{gRandom->Uniform(0, TMath::TwoPi())};
+    return {theta, phi};
+}
 
+void ApplyNaN(double &e, double t = 0, const std::string &comment = "stopped")
+{
+    if (e <= t)
+        e = std::nan(comment.c_str());
+}
 
+void ApplyThetaRes(double &theta)
+{
+    double sigma{0.95 / 2.355}; // FWHM to sigma
+    theta = gRandom->Gaus(theta, sigma * TMath::DegToRad());
+}
 
-void do_all_simus(const std::string& beam, const std::string& target, const std::string& light, const std::string& heavy, int neutronPS, int protonPS, double Tbeam, double Ex, bool inspect)
+double RandomizeBeamEnergy(double Tini, double sigma)
+{
+    return gRandom->Gaus(Tini, sigma);
+}
+
+void do_all_simus(const std::string &beam, const std::string &target, const std::string &light, const std::string &heavy, int neutronPS,
+                 int protonPS, double Tbeam, double Ex, bool inspect, bool isELastic)
 {
     // Ex = 0.435;
     // Set number of iterations
-    auto niter {static_cast<int>(2e6)};
+    auto niter{static_cast<int>(2e6)};
     gRandom->SetSeed(0);
     // Initialize detectors
     // TPC
-    ActRoot::TPCParameters tpc {"Actar"};
+    ActRoot::TPCParameters tpc{"Actar"};
     std::cout << "TPC: " << tpc.X() << " " << tpc.Y() << " " << tpc.Z() << '\n';
     // Silicons
-    auto* sils {new ActPhysics::SilSpecs};
+    auto *sils{new ActPhysics::SilSpecs};
     sils->ReadFile("../configs/silicons_reverse.conf");
     sils->Print();
-    const double sigmaSil {0.060 / 2.355}; // Si resolution
+    const double sigmaSil{0.060 / 2.355}; // Si resolution
     auto silRes = std::make_unique<TF1>(
-        "silRes", [=](double* x, double* p) { return sigmaSil * TMath::Sqrt(x[0] / 5.5); }, 0.0, 100.0, 1);
-    std::vector<std::string> silLayers {"f0", "l0", "r0"};
+        "silRes", [=](double *x, double *p)
+        { return sigmaSil * TMath::Sqrt(x[0] / 5.5); }, 0.0, 100.0, 1);
+    std::vector<std::string> silLayers{"f0", "l0", "r0"};
     // We have to centre the silicons with the beam input
     // In real life beam window is not at Z / 2
-    for(auto& [name, layer] : sils->GetLayers())
-    {   
-        if(name == "f0" || name == "f1")
+    for (auto &[name, layer] : sils->GetLayers())
+    {
+        if (name == "f0" || name == "f1")
             layer.MoveZTo(75, {3});
-        if(name == "l0" || name == "r0")
+        if (name == "l0" || name == "r0")
             layer.MoveZTo(75, {3});
     }
 
-
-        
     std::cout << "Sils Z centred at : " << tpc.Z() / 2 << " mm" << '\n';
     sils->DrawGeo();
     // This means: make the Z of silicons {5,6,...} be that zOfBeam.
@@ -110,162 +105,184 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
     // sils->DrawGeo();
 
     // Sigmas
-    const double sigmaPercentBeam {0.001122};
+    const double sigmaPercentBeam{0.001122};
     // Flags for resolution
-    bool exResolution {true};
+    bool exResolution{true};
 
     // SRIM
-    auto* srim {new ActPhysics::SRIM};
-    srim->ReadTable("light", "../SRIM files/2H_900mb_CF4_90-10.txt");
-    srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_90-10.txt");
-    srim->ReadTable("heavy", "../SRIM files/11Li_900mb_CF4_90-10.txt");
-    srim->ReadTable("lightInSil", "../SRIM files/2H_silicon.txt");
-    srim->ReadTable("heavyInSil", "../SRIM files/12Li_silicon.txt");
+    auto *srim{new ActPhysics::SRIM};
+    std::string path{"../SRIM files/"};
+    std::string gas{"900mb_CF4_90-10"};
+    std::string silicon{"silicon"};
+    srim->ReadTable("light", path + light + "_" + gas + ".txt");
+    srim->ReadTable("beam", path + beam + "_" + gas + ".txt");
+    srim->ReadTable("heavy", "path" + heavy + "_" + gas + ".txt");
+    srim->ReadTable("lightInSil", path + light + "_" + silicon + ".txt");
+    srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
 
     // Kinematics
     // auto* kin {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
-    auto* kinGen {new ActSim::KinematicGenerator {beam, target, light, heavy, protonPS, neutronPS}};
+    auto *kinGen{new ActSim::KinematicGenerator{beam, target, light, heavy, protonPS, neutronPS}};
+
+    // cross section sampler
+    auto* xs {new ActSim::CrossSection()};
+    if(Ex == 0.)
+    {
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angs12nospin.dat", Tbeam / 11)};
+        xs->ReadFile(data_to_read.Data());
+        std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+    }
+    else if(Ex == 0.130)
+    {
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angp12nospin.dat", Tbeam / 11)};
+        xs->ReadFile(data_to_read.Data());
+        std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+    }
+    else if(Ex == 0.435)
+    {
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angp32nospin.dat", Tbeam / 11)};
+        xs->ReadFile(data_to_read.Data());
+        std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+    }
 
     // Declare histograms
-    auto hKin {Histos::Kin.GetHistogram()};
+    auto hKin{Histos::Kin.GetHistogram()};
     hKin->SetTitle("Sampled kinematics");
-    auto hKinRec {Histos::Kin.GetHistogram()};
+    auto hKinRec{Histos::Kin.GetHistogram()};
     hKinRec->SetTitle("Reconstructed kinematics");
     // Silicon hits
-    auto hSPf0 {Histos::SP.GetHistogram()};
+    auto hSPf0{Histos::SP.GetHistogram()};
     hSPf0->SetTitle("SP for f0");
-    auto hSPl0 {Histos::SP.GetHistogram()};
+    auto hSPl0{Histos::SP.GetHistogram()};
     hSPl0->SetTitle("SP for l0");
-    auto hSPr0 {Histos::SP.GetHistogram()};
+    auto hSPr0{Histos::SP.GetHistogram()};
     hSPr0->SetTitle("SP for r0");
     // RP and angles
-    auto hRP {Histos::RP.GetHistogram()};
-    auto hRP_ZY {Histos::RP_ZY.GetHistogram()};
-    auto hThetaCMAll {Histos::ThetaCM.GetHistogram()};
-    auto hThetaCM {Histos::ThetaCM.GetHistogram()};
-    auto hThetaLabAll {Histos::ThetaLab.GetHistogram()};
-    auto hThetaLab {Histos::ThetaLab.GetHistogram()};
-    auto hEx {Histos::Ex.GetHistogram()};
-    auto hThetaCMThetaLab {Histos::ThetaCMThetaLab.GetHistogram()};
-    auto hRPxEfirstSil {Histos::RP_E.GetHistogram()};
+    auto hRP{Histos::RP.GetHistogram()};
+    auto hRP_ZY{Histos::RP_ZY.GetHistogram()};
+    auto hThetaCMAll{Histos::ThetaCM.GetHistogram()};
+    auto hThetaCM{Histos::ThetaCM.GetHistogram()};
+    auto hThetaLabAll{Histos::ThetaLab.GetHistogram()};
+    auto hThetaLab{Histos::ThetaLab.GetHistogram()};
+    auto hEx{Histos::Ex.GetHistogram()};
+    auto hThetaCMThetaLab{Histos::ThetaCMThetaLab.GetHistogram()};
+    auto hRPxEfirstSil{Histos::RP_E.GetHistogram()};
     hRPxEfirstSil->SetTitle("RPvsE if just 1 Sil");
-    auto hRPxEbothSil {Histos::RP_E.GetHistogram()};
+    auto hRPxEbothSil{Histos::RP_E.GetHistogram()};
     hRPxEbothSil->SetTitle("RPvsE if 2 Sil");
-    auto hRPxEStoppedGas {Histos::RP_E.GetHistogram()};
-    auto hRPeffAll {Histos::RP_eff.GetHistogram()};
-    auto hRPeffIn {Histos::RP_eff.GetHistogram()};
-    auto hThetaVertexInGas {Histos::ThetaLabVertex.GetHistogram()};
-    auto hRangeGas {Histos::RangeInGas.GetHistogram()};
-    auto hPhiLab {Histos::PhiLab.GetHistogram()};
-    auto hPhiCM {Histos::PhiLab.GetHistogram()};
+    auto hRPxEStoppedGas{Histos::RP_E.GetHistogram()};
+    auto hRPeffAll{Histos::RP_eff.GetHistogram()};
+    auto hRPeffIn{Histos::RP_eff.GetHistogram()};
+    auto hThetaVertexInGas{Histos::ThetaLabVertex.GetHistogram()};
+    auto hRangeGas{Histos::RangeInGas.GetHistogram()};
+    auto hPhiLab{Histos::PhiLab.GetHistogram()};
+    auto hPhiCM{Histos::PhiLab.GetHistogram()};
     hPhiCM->SetTitle("PhiCM");
     // Partial Efficeincies
-    auto hThetaLabNoReachSil {Histos::ThetaLab.GetHistogram()};
-    auto hThetaCMNoReachSil {Histos::ThetaCM.GetHistogram()};
-    auto hThetaLabDirectionSil {Histos::ThetaLab.GetHistogram()};
-    auto hThetaCMDirectionSil {Histos::ThetaCM.GetHistogram()};
-    auto hThetaLabMeassureSil {Histos::ThetaLab.GetHistogram()};
-    auto hThetaCMMeassureSil {Histos::ThetaCM.GetHistogram()};
+    auto hThetaLabNoReachSil{Histos::ThetaLab.GetHistogram()};
+    auto hThetaCMNoReachSil{Histos::ThetaCM.GetHistogram()};
+    auto hThetaLabDirectionSil{Histos::ThetaLab.GetHistogram()};
+    auto hThetaCMDirectionSil{Histos::ThetaCM.GetHistogram()};
+    auto hThetaLabMeassureSil{Histos::ThetaLab.GetHistogram()};
+    auto hThetaCMMeassureSil{Histos::ThetaCM.GetHistogram()};
     // Heavy Particle
-    auto hRangeHeavyInGas {Histos::RangeInGas.GetHistogram()};
+    auto hRangeHeavyInGas{Histos::RangeInGas.GetHistogram()};
     hRangeHeavyInGas->SetTitle("Range of heavy in gas");
-    auto hRangeHeavyInSilAfterGas {Histos::RangeInSil.GetHistogram()};
+    auto hRangeHeavyInSilAfterGas{Histos::RangeInSil.GetHistogram()};
     hRangeHeavyInSilAfterGas->SetAxisRange(0, 1);
     hRangeHeavyInSilAfterGas->SetTitle("Range of heavy in silicon after gas");
-    auto hT4Lab {Histos::T4Lab.GetHistogram()};
-    auto hT4LabAfterGas {Histos::T4Lab.GetHistogram()};
+    auto hT4Lab{Histos::T4Lab.GetHistogram()};
+    auto hT4LabAfterGas{Histos::T4Lab.GetHistogram()};
     hT4LabAfterGas->SetTitle("Kinetic Energy of heavy after gas");
-    auto hTbeamAfterGas {Histos::T4Lab.GetHistogram()};
+    auto hTbeamAfterGas{Histos::T4Lab.GetHistogram()};
     hTbeamAfterGas->SetTitle("Kinetic Energy of beam after gas");
-    auto hTheta4Lab {Histos::ThetaLabHeavy.GetHistogram()};
+    auto hTheta4Lab{Histos::ThetaLabHeavy.GetHistogram()};
     // Lateral silicon plots, why less counting
-    auto hSPl0noCut {Histos::SP.GetHistogram()};
+    auto hSPl0noCut{Histos::SP.GetHistogram()};
     hSPl0noCut->SetTitle("SP for l0 no Cuts");
-    auto hSPr0noCut {Histos::SP.GetHistogram()};
+    auto hSPr0noCut{Histos::SP.GetHistogram()};
     hSPr0noCut->SetTitle("SP for r0 no Cuts");
-    auto hTheta3LabReachLatSil {Histos::ThetaLab.GetHistogram()};
+    auto hTheta3LabReachLatSil{Histos::ThetaLab.GetHistogram()};
     hTheta3LabReachLatSil->SetTitle("Theta3Lab for particles that reach lateral silicons");
-    auto hTheta3LabNoReachLatSil {Histos::ThetaLab.GetHistogram()};
+    auto hTheta3LabNoReachLatSil{Histos::ThetaLab.GetHistogram()};
     hTheta3LabNoReachLatSil->SetTitle("Theta3Lab for particles that don't reach lateral silicons");
-    auto hT3LabNoReachLatSil {Histos::T3Lab.GetHistogram()};
+    auto hT3LabNoReachLatSil{Histos::T3Lab.GetHistogram()};
     hT3LabNoReachLatSil->SetTitle("T3Lab for particles that reach lateral silicons");
-    auto hT3LabReachLatSil {Histos::T3Lab.GetHistogram()};
+    auto hT3LabReachLatSil{Histos::T3Lab.GetHistogram()};
     hT3LabReachLatSil->SetTitle("T3Lab for particles that reach lateral silicons");
-    auto hTheta3LabLatSilPunch {Histos::ThetaLab.GetHistogram()};
+    auto hTheta3LabLatSilPunch{Histos::ThetaLab.GetHistogram()};
     hTheta3LabLatSilPunch->SetTitle("Theta3Lab for particles that punchthrough lateral silicons");
-    auto hRangeInGasSin {Histos::RangeInGasSin.GetHistogram()};
-    auto hdistanceSPtol0 {Histos::DistanceSP.GetHistogram()};
+    auto hRangeInGasSin{Histos::RangeInGasSin.GetHistogram()};
+    auto hdistanceSPtol0{Histos::DistanceSP.GetHistogram()};
     hdistanceSPtol0->SetTitle("Distance to SP for l0");
-    auto hdistanceSPtor0 {Histos::DistanceSP.GetHistogram()};
+    auto hdistanceSPtor0{Histos::DistanceSP.GetHistogram()};
     hdistanceSPtor0->SetTitle("Distance to SP for r0");
-    auto hRange1 {Histos::RangeInGasSin.GetHistogram()};
+    auto hRange1{Histos::RangeInGasSin.GetHistogram()};
     hRange1->SetTitle("Range");
-    auto hT3test {Histos::T3Lab.GetHistogram()};
+    auto hT3test{Histos::T3Lab.GetHistogram()};
     hT3test->SetTitle("T3Lab");
     // Kin and eff for lat silicons
-    auto hKinLatSil {Histos::Kin.GetHistogram()};
+    auto hKinLatSil{Histos::Kin.GetHistogram()};
     hKinLatSil->SetTitle("Kinematics for particles that go to lateral silicons (impact + stop)");
-    auto hKinLatSilReach {Histos::Kin.GetHistogram()};
+    auto hKinLatSilReach{Histos::Kin.GetHistogram()};
     hKinLatSilReach->SetTitle("Kinematics for particles that reach lateral silicons");
-    auto hKinLatStopInside {Histos::Kin.GetHistogram()};
+    auto hKinLatStopInside{Histos::Kin.GetHistogram()};
     hKinLatStopInside->SetTitle("Kinematics for particles that stop inside chamber");
-    auto hKinStopInside {Histos::Kin.GetHistogram()};
+    auto hKinStopInside{Histos::Kin.GetHistogram()};
     hKinStopInside->SetTitle("Kinematics for particles that stop inside chamber");
-    auto hKinNoReachSil {Histos::Kin.GetHistogram()};
+    auto hKinNoReachSil{Histos::Kin.GetHistogram()};
     hKinNoReachSil->SetTitle("Kinematics for particles that don't have a SP");
-    auto hKinStopBetweenSilAndGas {Histos::Kin.GetHistogram()};
+    auto hKinStopBetweenSilAndGas{Histos::Kin.GetHistogram()};
     hKinStopBetweenSilAndGas->SetTitle("Kinematics for particles that stop between lateral silicons and gas");
-    auto hThetaLabStopInside {Histos::ThetaLab.GetHistogram()};
+    auto hThetaLabStopInside{Histos::ThetaLab.GetHistogram()};
     hThetaLabStopInside->SetTitle("ThetaLab for particles that stop inside chanber");
-    auto hThetaCMStopInside {Histos::ThetaCM.GetHistogram()};
+    auto hThetaCMStopInside{Histos::ThetaCM.GetHistogram()};
     hThetaCMStopInside->SetTitle("ThetaCM for particles that stop inside chanber");
-    
 
     // File to save data
-    TString fileName {
+    TString fileName{
         TString::Format("../Outputs/%.1fMeV/inelastic_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d.root", Tbeam / 11, Ex, neutronPS, protonPS)};
-    auto* outFile {new TFile(fileName, "recreate")};
-    auto* outTree {new TTree("SimulationTTree", "A TTree containing only our Eex obtained by simulation")};
-    double theta3CM_tree {};
+    auto *outFile{new TFile(fileName, "recreate")};
+    auto *outTree{new TTree("SimulationTTree", "A TTree containing only our Eex obtained by simulation")};
+    double theta3CM_tree{};
     outTree->Branch("theta3CM", &theta3CM_tree);
-    double Eex_tree {};
+    double Eex_tree{};
     outTree->Branch("Eex", &Eex_tree);
-    double EVertex_tree {};
+    double EVertex_tree{};
     outTree->Branch("EVertex", &EVertex_tree);
-    double theta3Lab_tree {};
+    double theta3Lab_tree{};
     outTree->Branch("theta3Lab", &theta3Lab_tree);
-    double phi3CM_tree {};
+    double phi3CM_tree{};
     outTree->Branch("phi3CM", &phi3CM_tree);
-    auto* outTreeHeavy {new TTree("SimulationTTreeHeavy", "A TTree containing heavy information")};
-    double theta4Lab_tree {};
+    auto *outTreeHeavy{new TTree("SimulationTTreeHeavy", "A TTree containing heavy information")};
+    double theta4Lab_tree{};
     outTreeHeavy->Branch("theta4Lab", &theta4Lab_tree);
-    double phi4Lab_tree {};
+    double phi4Lab_tree{};
     outTreeHeavy->Branch("phi4Lab", &phi4Lab_tree);
-    double T4Lab_tree {};
+    double T4Lab_tree{};
     outTreeHeavy->Branch("T4Lab", &T4Lab_tree);
-    ROOT::Math::XYZPoint RP_tree {};
+    ROOT::Math::XYZPoint RP_tree{};
     outTreeHeavy->Branch("RP", &RP_tree);
-    double weight_tree {};
+    double weight_tree{};
     outTreeHeavy->Branch("weight", &weight_tree);
-    auto* outTreeNoCut {new TTree("SimulationTTreeNoCuts", "A TTree containing only our Eex obtained by simulation with no cuts")};
-    double theta3CM_treeNoCut {};
+    auto *outTreeNoCut{new TTree("SimulationTTreeNoCuts", "A TTree containing only our Eex obtained by simulation with no cuts")};
+    double theta3CM_treeNoCut{};
     outTreeNoCut->Branch("theta3CM", &theta3CM_treeNoCut);
-    double theta3Lab_treeNoCut {};
+    double theta3Lab_treeNoCut{};
     outTreeNoCut->Branch("theta3Lab", &theta3Lab_treeNoCut);
-    double phi3CM_treeNoCut {};
+    double phi3CM_treeNoCut{};
     outTreeNoCut->Branch("phi3CM", &phi3CM_treeNoCut);
-    double T3Lab_treeNoCut {};
+    double T3Lab_treeNoCut{};
     outTreeNoCut->Branch("T3Lab", &T3Lab_treeNoCut);
-    double theta4Lab_treeNoCut {};
+    double theta4Lab_treeNoCut{};
     outTreeNoCut->Branch("theta4Lab", &theta4Lab_treeNoCut);
-    double T4Lab_treeNoCut {};
+    double T4Lab_treeNoCut{};
     outTreeNoCut->Branch("T4Lab", &T4Lab_treeNoCut);
-    double weight_treeNoCut {};
+    double weight_treeNoCut{};
     outTreeNoCut->Branch("weight", &weight_treeNoCut);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
-    bool sampleWithoutXS {true};
-    if(sampleWithoutXS)
+    if (neutronPS == 2)
     {
         Ex = (1.26642 + 0.36928) / 2;
     }
@@ -274,14 +291,14 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
     // print fancy info (dont pay attention to this)
     std::cout << BOLDMAGENTA << "Running for Ex = " << Ex << " MeV" << RESET << '\n';
     std::cout << BOLDGREEN;
-    const int percentPrint {5};
-    int step {niter / (100 / percentPrint)};
-    int nextPrint {step};
-    int percent {};
-    for(int it = 0; it < niter; it++)
+    const int percentPrint{5};
+    int step{niter / (100 / percentPrint)};
+    int nextPrint{step};
+    int percent{};
+    for (int it = 0; it < niter; it++)
     {
         // Print progress
-        if(it >= nextPrint)
+        if (it >= nextPrint)
         {
             percent = 100 * it / niter;
             std::cout << "\r" << std::string(percent / percentPrint, '|') << percent << "%";
@@ -289,63 +306,67 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
             nextPrint += step;
         }
         // Sample vertex position
-        auto vertex {SampleVertex(&tpc)};
+        auto vertex{SampleVertex(&tpc)};
         hRPeffAll->Fill(vertex.X());
 
         // Randomize beam energy, slow beam with straggling and check if reaction can happen
         auto TbeamRand = RandomizeBeamEnergy(Tbeam, sigmaPercentBeam * Tbeam);
-        auto TbeamCorr {srim->SlowWithStraggling("beam", TbeamRand, vertex.X())};
-         // Sample kinematics generator
+        auto TbeamCorr{srim->SlowWithStraggling("beam", TbeamRand, vertex.X())};
+        // Sample kinematics generator
         kinGen->SetBeamEnergy(TbeamCorr);
         double weight = kinGen->Generate();
+        if (neutronPS == 0 && protonPS == 0)
+        {
+            weight = 1;
+        }
         auto kin {kinGen->GetBinaryKinematics()};
         // Get Lorenzt vector of products
-        auto LorenztVectorDeuterium {kinGen->GetLorentzVector(0)};
-        auto LorenztVector9Li {kinGen->GetLorentzVector(1)};
+        auto LorenztVector3{kinGen->GetLorentzVector(0)};
+        auto LorenztVector4{kinGen->GetLorentzVector(1)};
         // Get angles
-        auto theta3Lab {LorenztVectorDeuterium->Theta()};
-        auto phi3Lab {LorenztVectorDeuterium->Phi()};
-        auto T3Lab {LorenztVectorDeuterium->E() - LorenztVectorDeuterium->M()};
+        auto theta3Lab{LorenztVector3->Theta()};
+        auto phi3Lab{LorenztVector3->Phi()};
+        auto T3Lab{LorenztVector3->E() - LorenztVector3->M()};
 
-        double theta3CMBefore {kin->ReconstructTheta3CMFromLab(Tbeam, theta3Lab)};
-        double theta3CM {theta3CMBefore};
+        double theta3CMBefore{kin->ReconstructTheta3CMFromLab(Tbeam, theta3Lab)};
+        double theta3CM{theta3CMBefore};
         double phi3CM = phi3Lab;
         // Fill thetaCMall
         hThetaCMAll->Fill(theta3CMBefore);
         // Extract direction
         // Save without resolution
-        auto theta3LabSampled {theta3Lab};
+        auto theta3LabSampled{theta3Lab};
         // Apply angle resolution
         ApplyThetaRes(theta3Lab);
         hThetaLabAll->Fill(theta3Lab * TMath::RadToDeg());
         hPhiLab->Fill(phi3Lab * TMath::RadToDeg());
         hPhiCM->Fill(phi3CM * TMath::RadToDeg());
-        XYZVector direction {TMath::Cos(theta3Lab), TMath::Sin(theta3Lab) * TMath::Sin(phi3Lab),
-                             TMath::Sin(theta3Lab) * TMath::Cos(phi3Lab)};
+        XYZVector direction{TMath::Cos(theta3Lab), TMath::Sin(theta3Lab) * TMath::Sin(phi3Lab),
+                            TMath::Sin(theta3Lab) * TMath::Cos(phi3Lab)};
         // Analysis of heavy particle range, 12Li decays to 11Li
-        double theta4Lab {LorenztVector9Li->Theta()};
+        double theta4Lab{LorenztVector4->Theta()};
         hTheta4Lab->Fill(theta4Lab * TMath::RadToDeg());
-        auto phi4Lab {LorenztVector9Li->Phi()};
-        XYZVector directionHeavy {TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
-                             TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab)};
-        double T4Lab {LorenztVector9Li->E() - LorenztVector9Li->M()};
+        auto phi4Lab{LorenztVector4->Phi()};
+        XYZVector directionHeavy{TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
+                                 TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab)};
+        double T4Lab{LorenztVector4->E() - LorenztVector4->M()};
         hT4Lab->Fill(T4Lab);
-        double T4LabAfterGas {srim->Slow("heavy", T4Lab, (256 - vertex.X()) + 100)}; // Very low angle, so not took into acount
+        double T4LabAfterGas{srim->Slow("heavy", T4Lab, (256 - vertex.X()) + 100)}; // Very low angle, so not took into acount
         hT4LabAfterGas->Fill(T4LabAfterGas);
-        double rangeHeavyInGas {srim->EvalRange("heavy", T4Lab)};
+        double rangeHeavyInGas{srim->EvalRange("heavy", T4Lab)};
         hRangeHeavyInGas->Fill(rangeHeavyInGas);
-        double rangeHeavyInSilAfterGas {srim->EvalRange("heavyInSil", T4LabAfterGas)}; 
+        double rangeHeavyInSilAfterGas{srim->EvalRange("heavyInSil", T4LabAfterGas)};
         hRangeHeavyInSilAfterGas->Fill(rangeHeavyInSilAfterGas);
         // Analysis of unreacted beam particle energy in silicons
-        double TbeamAfterGas {srim->Slow("beam", TbeamCorr, 256 + 100)}; // ACTAR lenght + silicon separation
+        double TbeamAfterGas{srim->Slow("beam", TbeamCorr, 256 + 100)}; // ACTAR lenght + silicon separation
         hTbeamAfterGas->Fill(TbeamAfterGas);
         // Threshold L1, particles that stop in actar. Check before doing the continues
-        double rangeInGas {srim->EvalRange("light", T3Lab)};
-        ROOT::Math::XYZPoint finalPointGas {vertex + rangeInGas * direction.Unit()};
-        if(0 <= finalPointGas.X() && finalPointGas.X() <= 256 && 0 <= finalPointGas.Y() && finalPointGas.Y() <= 256 && 0 <= finalPointGas.Z() && finalPointGas.Z() <= 256)
+        double rangeInGas{srim->EvalRange("light", T3Lab)};
+        ROOT::Math::XYZPoint finalPointGas{vertex + rangeInGas * direction.Unit()};
+        if (0 <= finalPointGas.X() && finalPointGas.X() <= 256 && 0 <= finalPointGas.Y() && finalPointGas.Y() <= 256 && 0 <= finalPointGas.Z() && finalPointGas.Z() <= 256)
         {
-            double distanceXY {TMath::Sqrt(pow(vertex.X() - finalPointGas.X(),2) + pow(vertex.Y() - finalPointGas.Y(),2))};
-            if(distanceXY >= 0)
+            double distanceXY{TMath::Sqrt(pow(vertex.X() - finalPointGas.X(), 2) + pow(vertex.Y() - finalPointGas.Y(), 2))};
+            if (distanceXY >= 0)
             {
                 hThetaVertexInGas->Fill(theta3Lab * TMath::RadToDeg(), vertex.X());
                 hRangeGas->Fill(rangeInGas);
@@ -366,15 +387,15 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         int silIndex0 = -1;
         ROOT::Math::XYZPoint silPoint0;
         std::string layer0;
-        for(auto layer : silLayers)
+        for (auto layer : silLayers)
         {
             std::tie(silIndex0, silPoint0) = sils->FindSPInLayer(layer, vertex, direction);
-            if(silIndex0 != -1)
+            if (silIndex0 != -1)
             {
                 layer0 = layer;
                 break;
-            }                
-        }            
+            }
+        }
         // Fill tree with no cuts
         theta3CM_treeNoCut = theta3CMBefore;
         theta3Lab_treeNoCut = theta3Lab * TMath::RadToDeg();
@@ -388,7 +409,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         // silIndex == -1 if NO SP
         // else, returns the silicon index
         // silPoint0: SP in millimetres. in standard ACTAR frame (same as analysis)
-        if(silIndex0 == -1)
+        if (silIndex0 == -1)
         {
             hKinNoReachSil->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
             hThetaLabNoReachSil->Fill(theta3Lab * TMath::RadToDeg());
@@ -397,35 +418,35 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         }
         hThetaLabDirectionSil->Fill(theta3Lab * TMath::RadToDeg());
         hThetaCMDirectionSil->Fill(theta3CMBefore);
-            
+
         // Fill hist to get counts in laterals with no cuts
-        if(layer0 == "l0")
+        if (layer0 == "l0")
         {
             hSPl0noCut->Fill(silPoint0.X(), silPoint0.Z());
             hKinLatSil->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
             hdistanceSPtol0->Fill((silPoint0 - vertex).R());
         }
-        if(layer0 == "r0")
+        if (layer0 == "r0")
         {
             hSPr0noCut->Fill(silPoint0.X(), silPoint0.Z());
             hKinLatSil->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
             hdistanceSPtor0->Fill((silPoint0 - vertex).R());
         }
-        
+
         // Slow down light in gas
-        auto T3AtSil {srim->SlowWithStraggling("light", T3Lab, (silPoint0 - vertex).R())};
+        auto T3AtSil{srim->SlowWithStraggling("light", T3Lab, (silPoint0 - vertex).R())};
         // Check if stopped
         ApplyNaN(T3AtSil);
-        if(std::isnan(T3AtSil))
+        if (std::isnan(T3AtSil))
         {
             hThetaLabNoReachSil->Fill(theta3Lab * TMath::RadToDeg());
             hThetaCMNoReachSil->Fill(theta3CMBefore);
             hRPxEStoppedGas->Fill(vertex.X(), T3Lab);
-            if(layer0 == "l0" || layer0 == "r0")
+            if (layer0 == "l0" || layer0 == "r0")
             {
                 hTheta3LabNoReachLatSil->Fill(theta3Lab * TMath::RadToDeg());
                 hT3LabNoReachLatSil->Fill(T3Lab);
-                if(0 <= finalPointGas.X() && finalPointGas.X() <= 256 && 0 <= finalPointGas.Y() && finalPointGas.Y() <= 256 && 0 <= finalPointGas.Z() && finalPointGas.Z() <= 256)
+                if (0 <= finalPointGas.X() && finalPointGas.X() <= 256 && 0 <= finalPointGas.Y() && finalPointGas.Y() <= 256 && 0 <= finalPointGas.Z() && finalPointGas.Z() <= 256)
                 {
                     hKinLatStopInside->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
                 }
@@ -433,109 +454,109 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
                 {
                     hKinStopBetweenSilAndGas->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
                 }
-            }   
+            }
             continue;
         }
-        
+
         // Slow down in silicon
-        auto normal {sils->GetLayer(layer0).GetNormal()};
-        auto angleWithNormal {TMath::ACos(direction.Unit().Dot(normal.Unit()))};
-        auto T3AfterSil0 {srim->SlowWithStraggling("lightInSil", T3AtSil, sils->GetLayer(layer0).GetUnit().GetThickness(),
-                                                   angleWithNormal)};
-        auto eLoss0preSilRes {T3AtSil - T3AfterSil0};
-        auto eLoss0 {gRandom->Gaus(eLoss0preSilRes, silRes->Eval(eLoss0preSilRes))}; // after silicon resolution
+        auto normal{sils->GetLayer(layer0).GetNormal()};
+        auto angleWithNormal{TMath::ACos(direction.Unit().Dot(normal.Unit()))};
+        auto T3AfterSil0{srim->SlowWithStraggling("lightInSil", T3AtSil, sils->GetLayer(layer0).GetUnit().GetThickness(),
+                                                  angleWithNormal)};
+        auto eLoss0preSilRes{T3AtSil - T3AfterSil0};
+        auto eLoss0{gRandom->Gaus(eLoss0preSilRes, silRes->Eval(eLoss0preSilRes))}; // after silicon resolution
         ApplyNaN(eLoss0, sils->GetLayer(layer0).GetThresholds().at(silIndex0));
         int count = 0;
-        if(std::isnan(eLoss0))
+        if (std::isnan(eLoss0))
         {
             hThetaLabNoReachSil->Fill(theta3Lab * TMath::RadToDeg());
             hThetaCMNoReachSil->Fill(theta3CMBefore);
 
             hTheta3LabNoReachLatSil->Fill(theta3Lab * TMath::RadToDeg());
             hT3LabNoReachLatSil->Fill(T3Lab);
-            
-            if(layer0 == "l0" || layer0 == "r0")
+
+            if (layer0 == "l0" || layer0 == "r0")
                 hKinStopBetweenSilAndGas->Fill(theta3Lab * TMath::RadToDeg(), T3Lab); // No having more energy than threshold = stop between gas and silicon
             continue;
         }
-            
 
         // Analysis of punchthrough in lateral silicons
-        if(T3AfterSil0 > 0 && (layer0 == "l0" || layer0 == "r0"))
+        if (T3AfterSil0 > 0 && (layer0 == "l0" || layer0 == "r0"))
         {
             hTheta3LabLatSilPunch->Fill(theta3Lab * TMath::RadToDeg());
         }
 
-
         // Apply 2nd layer of silicons
-        double T3AfterInterGas {};
-        int silIndex1 {};
-        ROOT::Math::XYZPoint silPoint1 {};
-        double eLoss1 {};
-        double T3AfterSil1 {-1};
-        if(T3AfterSil0 > 0. && layer0 == "f0") 
+        double T3AfterInterGas{};
+        int silIndex1{};
+        ROOT::Math::XYZPoint silPoint1{};
+        double eLoss1{};
+        double T3AfterSil1{-1};
+        if (T3AfterSil0 > 0. && layer0 == "f0")
         {
             std::tie(silIndex1, silPoint1) = sils->FindSPInLayer("f1", vertex, direction);
-            if(silIndex1 == -1)
-            {} // If a silicon is not reached, don't continue with punchthough calculation
+            if (silIndex1 == -1)
+            {
+            } // If a silicon is not reached, don't continue with punchthough calculation
             else
             {
                 T3AfterInterGas = {srim->SlowWithStraggling("light", T3AfterSil0, (silPoint0 - silPoint1).R())};
-                if(T3AfterInterGas == 0)
-                {} // If slow in gas don't continue with calculation
+                if (T3AfterInterGas == 0)
+                {
+                } // If slow in gas don't continue with calculation
                 else
                 {
-                    T3AfterSil1 =srim->SlowWithStraggling("lightInSil", T3AfterInterGas, sils->GetLayer("f1").GetUnit().GetThickness(),
-                                                   angleWithNormal);
-                    auto eLoss1preSilRes {T3AfterInterGas - T3AfterSil1};
+                    T3AfterSil1 = srim->SlowWithStraggling("lightInSil", T3AfterInterGas, sils->GetLayer("f1").GetUnit().GetThickness(),
+                                                           angleWithNormal);
+                    auto eLoss1preSilRes{T3AfterInterGas - T3AfterSil1};
                     eLoss1 = gRandom->Gaus(eLoss1preSilRes, silRes->Eval(eLoss1preSilRes)); // after silicon resolution
                     ApplyNaN(eLoss1, sils->GetLayer("f1").GetThresholds().at(silIndex1));
-                    if(std::isnan(eLoss1))
+                    if (std::isnan(eLoss1))
                         eLoss1 = 0;
                 }
             }
         }
 
         // Reconstruct!
-        bool isOk {T3AfterSil0 == 0 || T3AfterSil1 == 0}; // no punchthrouhg
-        if(isOk)
+        bool isOk{T3AfterSil0 == 0 || T3AfterSil1 == 0}; // no punchthrouhg
+        if (isOk)
         {
             // Assuming no punchthrough!
-            double T3Rec {};
-            if(eLoss1 == 0)
+            double T3Rec{};
+            if (eLoss1 == 0)
             {
                 T3Rec = srim->EvalInitialEnergy("light", eLoss0, (silPoint0 - vertex).R());
                 hRPxEfirstSil->Fill(vertex.X(), T3Rec);
             }
             else
             {
-                auto T3Rec0 {srim->EvalInitialEnergy("light", eLoss0, (silPoint0 - vertex).R())};
+                auto T3Rec0{srim->EvalInitialEnergy("light", eLoss0, (silPoint0 - vertex).R())};
                 hRPxEfirstSil->Fill(vertex.X(), T3Rec0); // This is to show what would be obtained if there was just one sil
 
                 // Reconstruction ob T3 with 2 silicon layers
-                auto T3Rec1 {srim->EvalInitialEnergy("light", eLoss1, (silPoint1 - silPoint0).R())};
-                T3Rec = srim->EvalInitialEnergy("light", eLoss0+T3Rec1, (silPoint0 - vertex).R());
+                auto T3Rec1{srim->EvalInitialEnergy("light", eLoss1, (silPoint1 - silPoint0).R())};
+                T3Rec = srim->EvalInitialEnergy("light", eLoss0 + T3Rec1, (silPoint0 - vertex).R());
             }
 
-            auto ExRec {kin->ReconstructExcitationEnergy(T3Rec, theta3Lab)};
+            auto ExRec{kin->ReconstructExcitationEnergy(T3Rec, theta3Lab)};
 
             // Fill
             hKin->Fill(theta3LabSampled * TMath::RadToDeg(), T3Lab); // before uncertainties implemented
             hKinRec->Fill(theta3Lab * TMath::RadToDeg(), T3Rec);     // after reconstruction
-            hEx->Fill(ExRec);
+            hEx->Fill(ExRec, weight);
             hRP->Fill(vertex.X(), vertex.Y());
             hRP_ZY->Fill(vertex.Y(), vertex.Z());
-            if(layer0 == "f0")
+            if (layer0 == "f0")
             {
                 hSPf0->Fill(silPoint0.Y(), silPoint0.Z());
             }
-            if(layer0 == "l0")
+            if (layer0 == "l0")
             {
                 hSPl0->Fill(silPoint0.X(), silPoint0.Z());
                 hTheta3LabReachLatSil->Fill(theta3Lab * TMath::RadToDeg());
                 hKinLatSilReach->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
             }
-            if(layer0 == "r0")
+            if (layer0 == "r0")
             {
                 hSPr0->Fill(silPoint0.X(), silPoint0.Z());
                 hTheta3LabReachLatSil->Fill(theta3Lab * TMath::RadToDeg());
@@ -546,7 +567,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
             hThetaCMThetaLab->Fill(theta3CMBefore, theta3LabSampled * TMath::RadToDeg());
             hRPxEbothSil->Fill(vertex.X(), T3Rec);
             hRPeffIn->Fill(vertex.X());
-            
+
             hThetaLabMeassureSil->Fill(theta3Lab * TMath::RadToDeg());
             hThetaCMMeassureSil->Fill(theta3CMBefore);
 
@@ -570,31 +591,30 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
     outFile->Close();
 
     // Compute efficiency
-    auto* effCM {new TEfficiency {*hThetaCM, *hThetaCMAll}};
+    auto *effCM{new TEfficiency{*hThetaCM, *hThetaCMAll}};
     effCM->SetNameTitle("effCM", " #epsilon_{TOT} (#theta_{CM});#epsilon;#theta_{CM} [#circ]");
-    auto* effLab {new TEfficiency {*hThetaLab, *hThetaLabAll}};
+    auto *effLab{new TEfficiency{*hThetaLab, *hThetaLabAll}};
     effLab->SetNameTitle("effLab", "#epsilon_{TOT} (#theta_{Lab});#epsilon;#theta_{Lab} [#circ]");
-    auto* effLatSil {new TEfficiency {*hTheta3LabReachLatSil, *hThetaLabAll}};
+    auto *effLatSil{new TEfficiency{*hTheta3LabReachLatSil, *hThetaLabAll}};
     effLatSil->SetNameTitle("effLatSil", "#epsilon_{TOT} (#theta_{Lab}) Lateral Silicon;#epsilon;#theta_{Lab} [#circ]");
-    auto* effStopInside {new TEfficiency {*hThetaLabStopInside, *hThetaLabAll}};
+    auto *effStopInside{new TEfficiency{*hThetaLabStopInside, *hThetaLabAll}};
     effStopInside->SetNameTitle("effStopInside", "#epsilon_{TOT} (#theta_{Lab}) events stopped inside;#epsilon;#theta_{Lab} [#circ]");
-    auto effDetectionSilLab {new TEfficiency {*hThetaLabMeassureSil, *hThetaLabDirectionSil}};
+    auto effDetectionSilLab{new TEfficiency{*hThetaLabMeassureSil, *hThetaLabDirectionSil}};
     effDetectionSilLab->SetNameTitle("effDetectionSil", "#epsilon_{Sil} (#theta_{Lab}) events detected in silicons that go to them;#epsilon;#theta_{Lab} [#circ]");
-    auto effDetectionSilCM {new TEfficiency {*hThetaCMMeassureSil, *hThetaCMDirectionSil}};
+    auto effDetectionSilCM{new TEfficiency{*hThetaCMMeassureSil, *hThetaCMDirectionSil}};
     effDetectionSilCM->SetNameTitle("effDetectionSilCM", "#epsilon_{Sil} (#theta_{CM}) events detected in silicons that go to them;#epsilon;#theta_{CM} [#circ]");
-    auto effDetectionL1Lab {new TEfficiency {*hThetaLabStopInside, *hThetaLabNoReachSil}};
+    auto effDetectionL1Lab{new TEfficiency{*hThetaLabStopInside, *hThetaLabNoReachSil}};
     effDetectionL1Lab->SetNameTitle("effDetectionL1Lab", "#epsilon_{L1} (#theta_{Lab}) events detected L1 (no Sil signal);#epsilon;#theta_{Lab} [#circ]");
-    auto effDetectionL1CM {new TEfficiency {*hThetaCMStopInside, *hThetaCMNoReachSil}};
+    auto effDetectionL1CM{new TEfficiency{*hThetaCMStopInside, *hThetaCMNoReachSil}};
     effDetectionL1CM->SetNameTitle("effDetectionL1CM", "#epsilon_{L1} (#theta_{CM}) events detected L1 (no Sil signal);#epsilon;#theta_{CM} [#circ]");
     // Now efficiency in intervals
-    auto* effIntervals {new TEfficiency {*hRPeffIn, *hRPeffAll}};
+    auto *effIntervals{new TEfficiency{*hRPeffIn, *hRPeffAll}};
     effIntervals->SetNameTitle("effIntervals", "#RPx efficiency;#epsilon;#RPx [#mm]");
 
-
     // Draw if not running for multiple Exs
-    if(inspect)
+    if (inspect)
     {
-        auto* cSP {new TCanvas {"cSP", "Sil Points"}};
+        auto *cSP{new TCanvas{"cSP", "Sil Points"}};
         cSP->DivideSquare(3);
         cSP->cd(1);
         hSPf0->DrawClone("colz");
@@ -606,7 +626,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         hSPr0->DrawClone("colz");
         sils->GetLayer("r0").GetSilMatrix()->Draw();
 
-        auto* c0 {new TCanvas {"c0", "Sim inspect 0"}};
+        auto *c0{new TCanvas{"c0", "Sim inspect 0"}};
         c0->DivideSquare(6);
         c0->cd(1);
         hKin->DrawClone("colz");
@@ -627,7 +647,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         hThetaCM->SetTitle("#theta_{CM} in cuts");
         hThetaCM->DrawClone();
 
-        auto* c1 {new TCanvas {"c1", "Sim inspect 1"}};
+        auto *c1{new TCanvas{"c1", "Sim inspect 1"}};
         c1->DivideSquare(6);
         c1->cd(1);
         hPhiLab->DrawClone();
@@ -644,7 +664,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         c1->cd(6);
         hRPxEStoppedGas->DrawClone();
 
-        auto* cEff {new TCanvas {"cEff", "Eff plots"}};
+        auto *cEff{new TCanvas{"cEff", "Eff plots"}};
         cEff->DivideSquare(7);
         cEff->cd(1);
         effIntervals->Draw("apl");
@@ -661,7 +681,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         cEff->cd(7);
         hThetaLab->DrawClone();
 
-        auto* cL1 {new TCanvas {"cL1", "Plots for L1 events"}};
+        auto *cL1{new TCanvas{"cL1", "Plots for L1 events"}};
         cL1->DivideSquare(6);
         cL1->cd(1);
         hThetaLabStopInside->DrawClone();
@@ -670,7 +690,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         cL1->cd(3);
         hRangeGas->DrawClone();
 
-        auto* cHeavy {new TCanvas {"cHeavy", "Heavy Particle Study"}};
+        auto *cHeavy{new TCanvas{"cHeavy", "Heavy Particle Study"}};
         cHeavy->DivideSquare(6);
         cHeavy->cd(1);
         hT4Lab->DrawClone();
@@ -685,7 +705,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         cHeavy->cd(6);
         hTbeamAfterGas->DrawClone();
 
-        auto* cLat {new TCanvas {"cLatnoCut", "lateral Silicon Study"}};
+        auto *cLat{new TCanvas{"cLatnoCut", "lateral Silicon Study"}};
         cLat->DivideSquare(7);
         cLat->cd(1);
         hSPl0noCut->DrawClone("colz");
@@ -703,7 +723,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         hTheta3LabLatSilPunch->DrawClone();
         cLat->cd(7);
 
-        auto cLatKin {new TCanvas {"cLatKin", "Kinematics for lateral silicons"}};
+        auto cLatKin{new TCanvas{"cLatKin", "Kinematics for lateral silicons"}};
         cLatKin->DivideSquare(10);
         cLatKin->cd(1);
         hKinLatSil->DrawClone();
@@ -726,19 +746,18 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         cLatKin->cd(10);
         effStopInside->Draw("apl");
 
-        auto cProtonStopped {new TCanvas {"cProtonStopped", "Protons stopped in gas"}};
+        auto cProtonStopped{new TCanvas{"cProtonStopped", "Protons stopped in gas"}};
         cProtonStopped->DivideSquare(4);
         cProtonStopped->cd(1);
         hRangeInGasSin->DrawClone();
-        //hRange1->DrawClone("same");
+        // hRange1->DrawClone("same");
         cProtonStopped->cd(2);
         hKinStopInside->DrawClone();
         // gtheo->Draw("l");
         cProtonStopped->cd(3);
         hT3test->DrawClone();
-        
 
-        auto cCheckAsymmetry {new TCanvas {"cCheckAsymmetry", "Check Assymetry"}};
+        auto cCheckAsymmetry{new TCanvas{"cCheckAsymmetry", "Check Assymetry"}};
         cCheckAsymmetry->DivideSquare(6);
         cCheckAsymmetry->cd(1);
         hPhiCM->DrawClone();
@@ -753,7 +772,7 @@ void do_all_simus(const std::string& beam, const std::string& target, const std:
         cCheckAsymmetry->cd(6);
         hdistanceSPtor0->DrawClone();
 
-        auto cEfficiency {new TCanvas {"cEfficiency", "Efficiency"}};
+        auto cEfficiency{new TCanvas{"cEfficiency", "Efficiency"}};
         cEfficiency->DivideSquare(6);
         cEfficiency->cd(1);
         effLab->Draw("apl");
