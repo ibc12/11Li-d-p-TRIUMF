@@ -68,8 +68,13 @@ double RandomizeBeamEnergy(double Tini, double sigma)
     return gRandom->Gaus(Tini, sigma);
 }
 
+void GetKinematicsWithPhaseSpace()
+{
+
+}
+
 void do_all_simus(const std::string &beam, const std::string &target, const std::string &light, const std::string &heavy, int neutronPS,
-                 int protonPS, double Tbeam, double Ex, bool inspect, bool isELastic)
+                 int protonPS, double Tbeam, double Ex, bool inspect)
 {
     // Ex = 0.435;
     // Set number of iterations
@@ -121,26 +126,26 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
 
     // Kinematics
-    // auto* kin {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
-    auto *kinGen{new ActSim::KinematicGenerator{beam, target, light, heavy, protonPS, neutronPS}};
+    auto* kinForBinaryReaction {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
+    auto *kinGen {new ActSim::KinematicGenerator{beam, target, light, heavy, protonPS, neutronPS}};
 
     // cross section sampler
     auto* xs {new ActSim::CrossSection()};
     if(Ex == 0.)
     {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angs12nospin.dat", Tbeam / 11)};
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angs12nospin.dat", Tbeam / 11)};
         xs->ReadFile(data_to_read.Data());
         std::cout<<xs->GetTotalXSmbarn()<<std::endl;
     }
     else if(Ex == 0.130)
     {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angp12nospin.dat", Tbeam / 11)};
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp12nospin.dat", Tbeam / 11)};
         xs->ReadFile(data_to_read.Data());
         std::cout<<xs->GetTotalXSmbarn()<<std::endl;
     }
     else if(Ex == 0.435)
     {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angp32nospin.dat", Tbeam / 11)};
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp32nospin.dat", Tbeam / 11)};
         xs->ReadFile(data_to_read.Data());
         std::cout<<xs->GetTotalXSmbarn()<<std::endl;
     }

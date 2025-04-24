@@ -131,19 +131,19 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
     auto* xs {new ActSim::CrossSection()};
     if(Ex == 0.)
     {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angs12nospin.dat", Tbeam / 11)};
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angs12nospin.dat", Tbeam / 11)};
         xs->ReadFile(data_to_read.Data());
         std::cout<<xs->GetTotalXSmbarn()<<std::endl;
     }
     else if(Ex == 0.130)
     {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angp12nospin.dat", Tbeam / 11)};
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp12nospin.dat", Tbeam / 11)};
         xs->ReadFile(data_to_read.Data());
         std::cout<<xs->GetTotalXSmbarn()<<std::endl;
     }
     else if(Ex == 0.435)
     {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/angp32nospin.dat", Tbeam / 11)};
+        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp32nospin.dat", Tbeam / 11)};
         xs->ReadFile(data_to_read.Data());
         std::cout<<xs->GetTotalXSmbarn()<<std::endl;
     }
