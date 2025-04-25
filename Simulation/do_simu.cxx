@@ -112,10 +112,10 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
     // SRIM
     auto* srim {new ActPhysics::SRIM};
     // Transfer d,p
-    srim->ReadTable("light", "../SRIM files/proton_900mb_CF4_90-10.txt");
+    srim->ReadTable("light", "../SRIM files/1H_900mb_CF4_90-10.txt");
     srim->ReadTable("beam", "../SRIM files/11Li_900mb_CF4_90-10.txt");
     srim->ReadTable("heavy", "../SRIM files/12Li_900mb_CF4_90-10.txt");
-    srim->ReadTable("lightInSil", "../SRIM files/protons_silicon.txt");
+    srim->ReadTable("lightInSil", "../SRIM files/1H_silicon.txt");
     srim->ReadTable("heavyInSil", "../SRIM files/12Li_silicon.txt");
     // Transfer d,t
     // srim->ReadTable("light", "../SRIM files/3H_900mb_CF4_90-10.txt");
@@ -281,7 +281,7 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
     outTreeHeavy->Branch("RP", &RP_tree);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
-    bool setRandomEx {true};
+    bool setRandomEx {false};
     if(setRandomEx)
     {
         Ex = 0.;

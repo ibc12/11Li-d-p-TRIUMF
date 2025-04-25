@@ -75,7 +75,7 @@ void do_simu_elastic(const std::string& beam, const std::string& target, const s
 {
     // Ex = 0.435;
     // Set number of iterations
-    auto niter {static_cast<int>(1e7)};
+    auto niter {static_cast<int>(1e5)};
     gRandom->SetSeed(0);
     // Initialize detectors
     // TPC

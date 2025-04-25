@@ -78,7 +78,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 {
     // Ex = 0.435;
     // Set number of iterations
-    auto niter{static_cast<int>(2e6)};
+    auto niter{static_cast<int>(1e5)};
     gRandom->SetSeed(0);
     // Initialize detectors
     // TPC
@@ -99,6 +99,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     {
         if (name == "f0" || name == "f1")
             layer.MoveZTo(75, {3});
+        if(name == "f2")
+            layer.MoveZTo(125, {0});
         if (name == "l0" || name == "r0")
             layer.MoveZTo(75, {3});
     }
@@ -121,7 +123,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     std::string silicon{"silicon"};
     srim->ReadTable("light", path + light + "_" + gas + ".txt");
     srim->ReadTable("beam", path + beam + "_" + gas + ".txt");
-    srim->ReadTable("heavy", "path" + heavy + "_" + gas + ".txt");
+    srim->ReadTable("heavy", path + heavy + "_" + gas + ".txt");
     srim->ReadTable("lightInSil", path + light + "_" + silicon + ".txt");
     srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
 
@@ -154,7 +156,6 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             std::cout<<xs->GetTotalXSmbarn()<<std::endl;
         }
     }
-    
     
 
     // Declare histograms
@@ -352,10 +353,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         double phi4Lab {};
         double theta3CM {};
         double phi3CM {};
-        double theta3CMBefore {};
-        double phi4CM {};
+        double theta3CMBefore {-1};
         double weight {1.};
-        if(isThereXS)
+        if(neutronPS == 0 && protonPS == 0)
         {
             auto beamThreshold {ActPhysics::Kinematics(beam, target, light, heavy, -1, randEx).GetT1Thresh()};
             if(std::isnan(TbeamCorr) || TbeamCorr < beamThreshold)
@@ -363,10 +363,17 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 continue;
             }
             kin->SetBeamEnergyAndEx(TbeamCorr, randEx);
-            kin->ComputeRecoilKinematics(theta3CMBefore * TMath::DegToRad(), phi3CM);
-
             // Sample angle with xs
-            while(theta3CMBefore < 0){theta3CMBefore = xs->Sample(gRandom->Uniform());} // sample in deg
+            if(isThereXS)
+            {
+                while(theta3CMBefore < 0){theta3CMBefore = xs->Sample(gRandom->Uniform());} // sample in deg
+            }
+            else
+            {
+                theta3CMBefore = TMath::ACos(gRandom->Uniform(-1, 1)) * TMath::RadToDeg();
+            }
+            phi3CM = gRandom -> Uniform(0, 2 * TMath::Pi());
+            kin->ComputeRecoilKinematics(theta3CMBefore * TMath::DegToRad(), phi3CM);
             // Get Lab kinematics
             T3Lab = kin->GetT3Lab();
             phi3Lab = kin->GetPhi3Lab();
@@ -376,7 +383,6 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             // Apply angle resolution
             ApplyThetaRes(theta3Lab);
             theta3CM = kin->ReconstructTheta3CMFromLab(TbeamCorr, theta3Lab);
-            phi3CM = gRandom -> Uniform(0, 2 * TMath::Pi());
 
             // Heavy 
             theta4Lab = kin->GetTheta4Lab();
@@ -414,7 +420,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             phi4Lab = LorenztVector4->Phi();
             T4Lab = LorenztVector4->E() - LorenztVector4->M();
         }
-        
+
         // Fill thetaCMall
         hThetaCMAll->Fill(theta3CMBefore);
         // Extract direction
