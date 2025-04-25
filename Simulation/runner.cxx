@@ -24,6 +24,8 @@ void runner(TString what = "plot", bool inspect = true)
         Exs = {0., 0.130, 0.435};
     else if(neutronPS == 0 && protonPS == 0)
         Exs = {0};
+    else if(neutronPS == 2 && protonPS == 0)
+        Exs = {(1.26642 + 0.36928) / 2}; // half value between first excited state and the S_2n
     else if(neutronPS > 0 && protonPS == 0)
         Exs = {0}; // only gs for n phase space
     else if(neutronPS == 0 && protonPS > 0)

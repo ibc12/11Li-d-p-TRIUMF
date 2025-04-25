@@ -126,29 +126,36 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
 
     // Kinematics
-    auto* kinForBinaryReaction {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
+    auto* kin {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
     auto *kinGen {new ActSim::KinematicGenerator{beam, target, light, heavy, protonPS, neutronPS}};
 
     // cross section sampler
+    bool isThereXS{false};
     auto* xs {new ActSim::CrossSection()};
-    if(Ex == 0.)
+    if(neutronPS == 0 && protonPS == 0 && target == "2H" && light == "1H")
     {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angs12nospin.dat", Tbeam / 11)};
-        xs->ReadFile(data_to_read.Data());
-        std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+        isThereXS = true;
+        if(Ex == 0.)
+        {
+            TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angs12nospin.dat", Tbeam / 11)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+        }
+        else if(Ex == 0.130)
+        {
+            TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp12nospin.dat", Tbeam / 11)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+        }
+        else if(Ex == 0.435)
+        {
+            TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp32nospin.dat", Tbeam / 11)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+        }
     }
-    else if(Ex == 0.130)
-    {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp12nospin.dat", Tbeam / 11)};
-        xs->ReadFile(data_to_read.Data());
-        std::cout<<xs->GetTotalXSmbarn()<<std::endl;
-    }
-    else if(Ex == 0.435)
-    {
-        TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp32nospin.dat", Tbeam / 11)};
-        xs->ReadFile(data_to_read.Data());
-        std::cout<<xs->GetTotalXSmbarn()<<std::endl;
-    }
+    
+    
 
     // Declare histograms
     auto hKin{Histos::Kin.GetHistogram()};
@@ -314,47 +321,114 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         auto vertex{SampleVertex(&tpc)};
         hRPeffAll->Fill(vertex.X());
 
+        // Randomize (if needed) Ex in a BW distribution
+        double randEx = Ex;
+        if(exResolution && isThereXS)
+        {
+            if(Ex == 0)
+            {
+                randEx = gRandom->BreitWigner(Ex, 0.1);
+            }
+            else if(Ex == 0.130)
+            {
+                randEx = gRandom->BreitWigner(Ex, 0.015);
+            }
+            else if(Ex == 0.435)
+            {
+                randEx = gRandom->BreitWigner(Ex, 0.08);
+            }
+        }
+
         // Randomize beam energy, slow beam with straggling and check if reaction can happen
         auto TbeamRand = RandomizeBeamEnergy(Tbeam, sigmaPercentBeam * Tbeam);
         auto TbeamCorr{srim->SlowWithStraggling("beam", TbeamRand, vertex.X())};
-        // Sample kinematics generator
-        kinGen->SetBeamEnergy(TbeamCorr);
-        double weight = kinGen->Generate();
-        if (neutronPS == 0 && protonPS == 0)
+        // Initialize variables for both methods, kinGen and kin
+        double T3Lab {};
+        double T4Lab {};
+        double theta3Lab {};
+        double theta3LabSampled {};
+        double phi3Lab {};
+        double theta4Lab {};
+        double phi4Lab {};
+        double theta3CM {};
+        double phi3CM {};
+        double theta3CMBefore {};
+        double phi4CM {};
+        double weight {1.};
+        if(isThereXS)
         {
-            weight = 1;
-        }
-        auto kin {kinGen->GetBinaryKinematics()};
-        // Get Lorenzt vector of products
-        auto LorenztVector3{kinGen->GetLorentzVector(0)};
-        auto LorenztVector4{kinGen->GetLorentzVector(1)};
-        // Get angles
-        auto theta3Lab{LorenztVector3->Theta()};
-        auto phi3Lab{LorenztVector3->Phi()};
-        auto T3Lab{LorenztVector3->E() - LorenztVector3->M()};
+            auto beamThreshold {ActPhysics::Kinematics(beam, target, light, heavy, -1, randEx).GetT1Thresh()};
+            if(std::isnan(TbeamCorr) || TbeamCorr < beamThreshold)
+            {
+                continue;
+            }
+            kin->SetBeamEnergyAndEx(TbeamCorr, randEx);
+            kin->ComputeRecoilKinematics(theta3CMBefore * TMath::DegToRad(), phi3CM);
 
-        double theta3CMBefore{kin->ReconstructTheta3CMFromLab(Tbeam, theta3Lab)};
-        double theta3CM{theta3CMBefore};
-        double phi3CM = phi3Lab;
+            // Sample angle with xs
+            while(theta3CMBefore < 0){theta3CMBefore = xs->Sample(gRandom->Uniform());} // sample in deg
+            // Get Lab kinematics
+            T3Lab = kin->GetT3Lab();
+            phi3Lab = kin->GetPhi3Lab();
+            theta3Lab = kin->GetTheta3Lab();
+            // Save without resolution
+            theta3LabSampled = theta3Lab;
+            // Apply angle resolution
+            ApplyThetaRes(theta3Lab);
+            theta3CM = kin->ReconstructTheta3CMFromLab(TbeamCorr, theta3Lab);
+            phi3CM = gRandom -> Uniform(0, 2 * TMath::Pi());
+
+            // Heavy 
+            theta4Lab = kin->GetTheta4Lab();
+            phi4Lab = kin->GetPhi4Lab();
+            T4Lab = kin->GetT4Lab();
+        }
+        else
+        {
+            // Sample kinematics generator
+            kinGen->SetBeamEnergy(TbeamCorr);
+            weight = kinGen->Generate();
+            if (neutronPS == 0 && protonPS == 0)
+            {
+                weight = 1;
+            }
+            auto kinBinary {kinGen->GetBinaryKinematics()};
+            // Get Lorenzt vector of products
+            auto LorenztVector3 = kinGen->GetLorentzVector(0);
+            auto LorenztVector4 = kinGen->GetLorentzVector(1);
+            // Get angles
+            theta3Lab = LorenztVector3->Theta();
+            phi3Lab = LorenztVector3->Phi();
+            T3Lab = LorenztVector3->E() - LorenztVector3->M();
+            // Save without resolution
+            theta3LabSampled = theta3Lab;
+            // Apply angle resolution
+            ApplyThetaRes(theta3Lab);
+
+            theta3CMBefore = kin->ReconstructTheta3CMFromLab(TbeamCorr, theta3LabSampled) * TMath::RadToDeg(); // this is in deg, because of xs sampling in other case
+            theta3CM = kin->ReconstructTheta3CMFromLab(TbeamCorr, theta3Lab);
+            phi3CM = phi3Lab;
+
+            // Heavy
+            theta4Lab = LorenztVector4->Theta();
+            phi4Lab = LorenztVector4->Phi();
+            T4Lab = LorenztVector4->E() - LorenztVector4->M();
+        }
+        
         // Fill thetaCMall
         hThetaCMAll->Fill(theta3CMBefore);
         // Extract direction
-        // Save without resolution
-        auto theta3LabSampled{theta3Lab};
-        // Apply angle resolution
-        ApplyThetaRes(theta3Lab);
         hThetaLabAll->Fill(theta3Lab * TMath::RadToDeg());
         hPhiLab->Fill(phi3Lab * TMath::RadToDeg());
         hPhiCM->Fill(phi3CM * TMath::RadToDeg());
         XYZVector direction{TMath::Cos(theta3Lab), TMath::Sin(theta3Lab) * TMath::Sin(phi3Lab),
                             TMath::Sin(theta3Lab) * TMath::Cos(phi3Lab)};
         // Analysis of heavy particle range, 12Li decays to 11Li
-        double theta4Lab{LorenztVector4->Theta()};
+        
         hTheta4Lab->Fill(theta4Lab * TMath::RadToDeg());
-        auto phi4Lab{LorenztVector4->Phi()};
+        
         XYZVector directionHeavy{TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
                                  TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab)};
-        double T4Lab{LorenztVector4->E() - LorenztVector4->M()};
         hT4Lab->Fill(T4Lab);
         double T4LabAfterGas{srim->Slow("heavy", T4Lab, (256 - vertex.X()) + 100)}; // Very low angle, so not took into acount
         hT4LabAfterGas->Fill(T4LabAfterGas);

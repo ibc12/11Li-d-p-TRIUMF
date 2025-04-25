@@ -307,17 +307,16 @@ void do_simu_inelastic(const std::string& beam, const std::string& target, const
         auto theta3Lab {LorenztVectorDeuterium->Theta()};
         auto phi3Lab {LorenztVectorDeuterium->Phi()};
         auto T3Lab {LorenztVectorDeuterium->E() - LorenztVectorDeuterium->M()};
-
+        // Save without resolution
+        auto theta3LabSampled {theta3Lab};
+        // Apply angle resolution
+        ApplyThetaRes(theta3Lab);
         double theta3CMBefore {kin->ReconstructTheta3CMFromLab(Tbeam, theta3Lab)};
         double theta3CM {theta3CMBefore};
         double phi3CM = phi3Lab;
         // Fill thetaCMall
         hThetaCMAll->Fill(theta3CMBefore);
         // Extract direction
-        // Save without resolution
-        auto theta3LabSampled {theta3Lab};
-        // Apply angle resolution
-        ApplyThetaRes(theta3Lab);
         hThetaLabAll->Fill(theta3Lab * TMath::RadToDeg());
         hPhiLab->Fill(phi3Lab * TMath::RadToDeg());
         hPhiCM->Fill(phi3CM * TMath::RadToDeg());
