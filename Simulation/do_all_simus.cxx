@@ -39,7 +39,7 @@ XYZPoint SampleVertex(ActRoot::TPCParameters *tpc)
     double sigmaY{4};
     double sigmaZ{4};
     auto y{gRandom->Gaus(tpc->Y() / 2, sigmaY)};
-    auto z{gRandom->Gaus(tpc->Z() / 2, sigmaZ)};
+    auto z{gRandom->Gaus(135., sigmaZ)}; // Actar has the beam entrance 135 mm from the bottom of the field cage.
     auto x{gRandom->Uniform() * tpc->X()};
     return {x, y, z};
 }
