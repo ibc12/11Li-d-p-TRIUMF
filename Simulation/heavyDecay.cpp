@@ -44,23 +44,38 @@ ROOT::Math::XYZPointF ComputeLimitPoint(ROOT::Math::XYZVector directionHeavy, RO
 
 void heavyDecay ()
 {
-    // Get tree from file of transfer
-    TString fileNameTransfer ("../Outputs/7.5MeV/transfer_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
-    auto* file {new TFile(fileNameTransfer, "read")};
-    if (!file || file->IsZombie()) 
+    // Get tree from file of transfer dp
+    TString fileNameTransfer_dp ("../Outputs/7.5MeV/2H_1H_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
+    auto* filedp {new TFile(fileNameTransfer_dp, "read")};
+    if (!filedp || filedp->IsZombie()) 
     {
-        std::cerr << "Error: No se pudo abrir el archivo " << fileNameTransfer << std::endl;
+        std::cerr << "Error: No se pudo abrir el archivo " << fileNameTransfer_dp << std::endl;
         return;
     }
-    auto* treeTransfer {static_cast<TTree*>(file->Get("SimulationTTreeHeavy"))};
-    if (!treeTransfer) 
+    auto* treeTransfer_dp {static_cast<TTree*>(filedp->Get("SimulationTTreeHeavy"))};
+    if (!treeTransfer_dp) 
     {
-        std::cerr << "Error: No se encontró 'SimulationTTreeHeavy' en el archivo " << fileNameTransfer << std::endl;
-        file->ls(); // Listar contenido del archivo para depuración
+        std::cerr << "Error: No se encontró 'SimulationTTreeHeavy' en el archivo " << fileNameTransfer_dp << std::endl;
+        filedp->ls(); // Listar contenido del archivo para depuración
+        return;
+    }
+    // Get tree from file of transfer dt
+    TString fileNameTransfer_dt ("../Outputs/7.5MeV/2H_3H_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
+    auto* filedt {new TFile(fileNameTransfer_dp, "read")};
+    if (!filedt || filedt->IsZombie()) 
+    {
+        std::cerr << "Error: No se pudo abrir el archivo " << fileNameTransfer_dt << std::endl;
+        return;
+    }
+    auto* treeTransfer_dt {static_cast<TTree*>(filedt->Get("SimulationTTreeHeavy"))};
+    if (!treeTransfer_dt) 
+    {
+        std::cerr << "Error: No se encontró 'SimulationTTreeHeavy' en el archivo " << fileNameTransfer_dt << std::endl;
+        filedt->ls(); // Listar contenido del archivo para depuración
         return;
     }
     // Get tree from file of inelastic
-    TString fileNameInelastic ("../Outputs/7.5MeV/inelastic_TRIUMF_Eex_0.000_nPS_2_pPS_0.root");
+    TString fileNameInelastic ("../Outputs/7.5MeV/2H_2H_TRIUMF_Eex_0.818_nPS_2_pPS_0.root");
     auto* fileInelastic {new TFile(fileNameInelastic, "read")};
     if (!fileInelastic || fileInelastic->IsZombie()) 
     {
@@ -75,7 +90,7 @@ void heavyDecay ()
         return;
     }
     // Get tree from file of elastic
-    TString fileNameElastic ("../Outputs/7.5MeV/elastic_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
+    TString fileNameElastic ("../Outputs/7.5MeV/2H_2H_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
     auto* fileElastic {new TFile(fileNameElastic, "read")};
     if (!fileElastic || fileElastic->IsZombie()) 
     {
@@ -133,16 +148,19 @@ void heavyDecay ()
     ActPhysics::Particle Li11excited = ActPhysics::Particle(3, 11);
     Li11excited.SetEx(1.26642);
     ActPhysics::Particle Li9 = ActPhysics::Particle(3, 9);
+    ActPhysics::Particle Li10 = ActPhysics::Particle(3, 10);
     ActPhysics::Particle neutron = ActPhysics::Particle(0, 1);
     ActPhysics::Particle deuterium = ActPhysics::Particle(1, 2);
 
     // Decay generator
     auto decayGen11Li {new ActSim::DecayGenerator(Li12, Li11, neutron)};
-    auto decayGen9Li {new ActSim::DecayGenerator(Li11excited, Li9, neutron, neutron)};
+    auto decayGen9Li_from11Li {new ActSim::DecayGenerator(Li11excited, Li9, neutron, neutron)};
+    auto decayGen9Li_from10Li {new ActSim::DecayGenerator(Li10, Li9, neutron)};
 
     // kinematics
     auto kinElastic {new ActPhysics::Kinematics {"11Li(d,d)@82.5|0"}};
-    auto kinTransfer {new ActPhysics::Kinematics {"11Li(d,p)@82.5|0"}};
+    auto kinTransfer_dp {new ActPhysics::Kinematics {"11Li(d,p)@82.5|0"}};
+    auto kinTransfer_dt {new ActPhysics::Kinematics {"11Li(d,t)@82.5|0"}};
     auto kinInelastic {new ActPhysics::Kinematics {"11Li(d,d)@82.5|1"}}; // Ex centered at (1.26642 + 0.36928) / 2, and is a gaussian distribution of sigma 0.2, so will not be accurate
 
     // Read TTree in a for loop and see decay for each event for TRANSFER
@@ -150,10 +168,15 @@ void heavyDecay ()
     double phi4Lab {};
     double T4Lab {};
     ROOT::Math::XYZPoint* RP {};
-    treeTransfer->SetBranchAddress("theta4Lab", &theta4Lab);
-    treeTransfer->SetBranchAddress("phi4Lab", &phi4Lab);
-    treeTransfer->SetBranchAddress("T4Lab", &T4Lab);
-    treeTransfer->SetBranchAddress("RP", &RP);
+    treeTransfer_dp->SetBranchAddress("theta4Lab", &theta4Lab);
+    treeTransfer_dp->SetBranchAddress("phi4Lab", &phi4Lab);
+    treeTransfer_dp->SetBranchAddress("T4Lab", &T4Lab);
+    treeTransfer_dp->SetBranchAddress("RP", &RP);
+
+    treeTransfer_dt->SetBranchAddress("theta4Lab", &theta4Lab);
+    treeTransfer_dt->SetBranchAddress("phi4Lab", &phi4Lab);
+    treeTransfer_dt->SetBranchAddress("T4Lab", &T4Lab);
+    treeTransfer_dt->SetBranchAddress("RP", &RP);
 
     treeInelastic->SetBranchAddress("theta4Lab", &theta4Lab);
     treeInelastic->SetBranchAddress("phi4Lab", &phi4Lab);
@@ -184,19 +207,25 @@ void heavyDecay ()
     hkin->SetTitle("Heavy kinematics for all cases");
     auto hkin12Li {Histos::KinHeavy.GetHistogram()};
     hkin12Li->SetTitle("Heavy kinematics for 12Li");
+    auto hkin10Li {Histos::KinHeavy.GetHistogram()};
+    hkin10Li->SetTitle("Heavy kinematics for 10Li");
     auto hkin11LiInelastic {Histos::KinHeavy.GetHistogram()};
     hkin11LiInelastic->SetTitle("Heavy kinematics for 11Li inelastic");
     auto hkin11LiElastic {Histos::KinHeavy.GetHistogram()};
     hkin11LiElastic->SetTitle("Heavy kinematics for 11Li elastic");
     // PID's
-    auto hPIDtransfer {Histos::PID.GetHistogram()};
-    hPIDtransfer->SetTitle("PID for transfer");
+    auto hPIDtransfer_dp {Histos::PID.GetHistogram()};
+    hPIDtransfer_dp->SetTitle("PID for transfer dp");
+    auto hPIDtransfer_dt {Histos::PID.GetHistogram()};
+    hPIDtransfer_dt->SetTitle("PID for transfer dt");
     auto hPIDinelastic {Histos::PID.GetHistogram()};
     hPIDinelastic->SetTitle("PID for inelastic");
     auto hPIDelastic {Histos::PID.GetHistogram()};
     hPIDelastic->SetTitle("PID for elastic");
-    auto hPIDtransferLength {Histos::PIDlength.GetHistogram()};
-    hPIDtransferLength->SetTitle("PID for transfer length");
+    auto hPIDtransferLength_dp {Histos::PIDlength.GetHistogram()};
+    hPIDtransferLength_dp->SetTitle("PID for transfer length dp");
+    auto hPIDtransferLength_dt {Histos::PIDlength.GetHistogram()};
+    hPIDtransferLength_dt->SetTitle("PID for transfer length dt");
     auto hPIDinelasticLength {Histos::PIDlength.GetHistogram()};
     hPIDinelasticLength->SetTitle("PID for inelastic length");
     auto hPIDelasticLength {Histos::PIDlength.GetHistogram()};
@@ -209,9 +238,9 @@ void heavyDecay ()
     hkin11LiDebug->SetTitle("Heavy kinematics for 11Li");
     
     // Loop over the tree
-    for(int i = 0; i < treeTransfer->GetEntries(); i++)
+    for(int i = 0; i < treeTransfer_dp->GetEntries(); i++)
     {
-        treeTransfer->GetEntry(i);
+        treeTransfer_dp->GetEntry(i);
         // Decay
         hkin12Li->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
         decayGen11Li->SetDecay(T4Lab, theta4Lab, phi4Lab);
@@ -264,8 +293,8 @@ void heavyDecay ()
         }
         else
         {
-            hPIDtransfer->Fill(eLoss, DeltaE);
-            hPIDtransferLength->Fill(eLoss, DeltaE / distanceInside);
+            hPIDtransfer_dp->Fill(eLoss, DeltaE);
+            hPIDtransferLength_dp->Fill(eLoss, DeltaE / distanceInside);
         }
         
 
@@ -285,6 +314,87 @@ void heavyDecay ()
         {
             hkin11Li->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
             hkin->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
+        }
+        // PID
+        
+
+    }
+
+    // Loop over the tree  dt
+    for(int i = 0; i < treeTransfer_dt->GetEntries(); i++)
+    {
+        treeTransfer_dt->GetEntry(i);
+        // Decay
+        hkin10Li->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
+        decayGen9Li_from10Li->SetDecay(T4Lab, theta4Lab, phi4Lab);
+        decayGen9Li_from10Li->Generate();
+        // Get the decay products
+        auto LorentzVectorLi9 {decayGen9Li_from10Li->GetLorentzVector(0)};
+        auto thetaLi9 {LorentzVectorLi9->Theta()};
+        auto phiLi9 {LorentzVectorLi9->Phi()};
+        auto TLi9 {LorentzVectorLi9->E() - LorentzVectorLi9->M()};
+        
+        ROOT::Math::XYZVector directionLi11 {TMath::Cos(thetaLi9), TMath::Sin(thetaLi9) * TMath::Sin(phiLi9),
+                              TMath::Sin(thetaLi9) * TMath::Cos(phiLi9)};
+
+        // Check hit for the 11Li 
+        int silIndex = -1;
+        ROOT::Math::XYZPoint silPoint;
+        std::string layerHit;
+        for(auto layer : silLayers)
+        {
+            std::tie(silIndex, silPoint) = sils->FindSPInLayer(layer, *RP, directionLi11);
+            if(silIndex != -1)
+            {
+                layerHit = layer;
+                break;
+            }                
+        }
+        if(silIndex == -1)
+        {
+            continue; // If a silicon is not reached, don't continue with punchthough calculation
+        }
+        // Calculation of DeltaE-E
+        // auto rangeInitial {srim->EvalRange("11LiGas", TLi11)};
+        // First, slow inside detector volume
+        auto limitPointGas {ComputeLimitPoint(directionLi11, *RP)};
+        double distanceInside {(*RP - limitPointGas).R()};
+        auto energyAfterInside {srim->SlowWithStraggling("11LiGas", TLi9, distanceInside)};
+        // auto DeltaE {TLi11 - energyAfterInside};
+        // Second, slow in gas before silicon
+        auto distanceInterGas {(limitPointGas - silPoint).R()};
+        auto energyAfterInterGas {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceInterGas)};
+        auto DeltaE {TLi9 - energyAfterInterGas};
+        // Finally, slow in silicon
+        auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi9)};
+        auto eLoss {energyAfterInterGas - energyAfterSil};
+        if(energyAfterSil > 0)
+        {
+            std::cout <<" Energy in silicon: " << energyAfterSil << " Angle: " << thetaLi9 * TMath::RadToDeg() << " Layer: " << layerHit.size() <<'\n';
+        }
+        else
+        {
+            hPIDtransfer_dt->Fill(eLoss, DeltaE);
+            hPIDtransferLength_dt->Fill(eLoss, DeltaE / distanceInside);
+        }
+        
+
+        // Fill SP histos
+        if(layerHit == "f0")
+        {
+            hSPf0->Fill(silPoint.Y(), silPoint.Z());
+        }
+        if(layerHit == "f2")
+        {
+            hSPf2->Fill(silPoint.Y(), silPoint.Z());
+        }
+        // Fill rest histos
+        // hTheta10Li->Fill(theta4Lab * TMath::RadToDeg());
+        // hTheta9Li->Fill(thetaLi11 * TMath::RadToDeg());
+        if(layerHit == "f2")
+        {
+            hkin9Li->Fill(thetaLi9 * TMath::RadToDeg(), TLi9);
+            hkin->Fill(thetaLi9 * TMath::RadToDeg(), TLi9);
         }
         // PID
         
@@ -435,7 +545,7 @@ void heavyDecay ()
     ckins->DivideSquare(6);
     ckins->cd(1);
     hkin12Li->DrawClone("colz");
-    kinTransfer->GetKinematicLine4()->Draw("l");
+    kinTransfer_dp->GetKinematicLine4()->Draw("l");
     ckins->cd(4);
     hkin11Li->DrawClone("colz");
     ckins->cd(2);
@@ -450,19 +560,23 @@ void heavyDecay ()
     hkin->DrawClone("colz");
 
     auto* cPIDs {new TCanvas {"cPIDs", "PID"}};
-    cPIDs->DivideSquare(6);
+    cPIDs->DivideSquare(8);
     cPIDs->cd(1);
-    hPIDtransfer->DrawClone("colz");
+    hPIDtransfer_dp->DrawClone("colz");
     cPIDs->cd(2);
     hPIDinelastic->DrawClone("colz");
     cPIDs->cd(3);
     hPIDelastic->DrawClone("colz");
     cPIDs->cd(4);
-    hPIDtransferLength->DrawClone("colz");
+    hPIDtransfer_dt->DrawClone("colz");
     cPIDs->cd(5);
-    hPIDinelasticLength->DrawClone("colz");
+    hPIDtransferLength_dp->DrawClone("colz");
     cPIDs->cd(6);
+    hPIDinelasticLength->DrawClone("colz");
+    cPIDs->cd(7);
     hPIDelasticLength->DrawClone("colz");
+    cPIDs->cd(8);
+    hPIDtransferLength_dt->DrawClone("colz");
     }
 
 #endif

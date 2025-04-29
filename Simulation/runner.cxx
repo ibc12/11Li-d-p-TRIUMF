@@ -16,8 +16,8 @@ void runner(TString what = "plot", bool inspect = true)
     // Particles
     std::string beam {"11Li"};
     std::string target {"2H"};
-    std::string light {"2H"};
-    std::string heavy {"11Li"};
+    std::string light {"1H"};
+    std::string heavy {"12Li"};
     // Vector with Exs
     std::vector<double> Exs;
     if(neutronPS == 0 && protonPS == 0 && target == "2H" && light == "1H") 

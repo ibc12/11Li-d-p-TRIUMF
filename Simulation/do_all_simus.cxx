@@ -68,10 +68,6 @@ double RandomizeBeamEnergy(double Tini, double sigma)
     return gRandom->Gaus(Tini, sigma);
 }
 
-void GetKinematicsWithPhaseSpace()
-{
-
-}
 
 void do_all_simus(const std::string &beam, const std::string &target, const std::string &light, const std::string &heavy, int neutronPS,
                  int protonPS, double Tbeam, double Ex, bool inspect)
@@ -128,6 +124,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
 
     // Kinematics
+    auto* kinTheo {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
     auto* kin {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
     auto *kinGen {new ActSim::KinematicGenerator{beam, target, light, heavy, protonPS, neutronPS}};
 
@@ -254,7 +251,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 
     // File to save data
     TString fileName{
-        TString::Format("../Outputs/%.1fMeV/inelastic_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d.root", Tbeam / 11, Ex, neutronPS, protonPS)};
+        TString::Format("../Outputs/%.1fMeV/%s_%s_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d.root", Tbeam / 11, target.c_str(), light.c_str(), Ex, neutronPS, protonPS)};
     auto *outFile{new TFile(fileName, "recreate")};
     auto *outTree{new TTree("SimulationTTree", "A TTree containing only our Eex obtained by simulation")};
     double theta3CM_tree{};
@@ -355,7 +352,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         double phi3CM {};
         double theta3CMBefore {-1};
         double weight {1.};
-        if(neutronPS == 0 && protonPS == 0)
+        if(isThereXS)
         {
             auto beamThreshold {ActPhysics::Kinematics(beam, target, light, heavy, -1, randEx).GetT1Thresh()};
             if(std::isnan(TbeamCorr) || TbeamCorr < beamThreshold)
@@ -392,13 +389,13 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         else
         {
             // Sample kinematics generator
-            kinGen->SetBeamEnergy(TbeamCorr);
+            kinGen->SetBeamAndExEnergies(TbeamCorr, 0);
             weight = kinGen->Generate();
             if (neutronPS == 0 && protonPS == 0)
             {
                 weight = 1;
             }
-            auto kinBinary {kinGen->GetBinaryKinematics()};
+            kin = kinGen->GetBinaryKinematics();
             // Get Lorenzt vector of products
             auto LorenztVector3 = kinGen->GetLorentzVector(0);
             auto LorenztVector4 = kinGen->GetLorentzVector(1);
@@ -411,8 +408,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             // Apply angle resolution
             ApplyThetaRes(theta3Lab);
 
-            theta3CMBefore = kin->ReconstructTheta3CMFromLab(TbeamCorr, theta3LabSampled) * TMath::RadToDeg(); // this is in deg, because of xs sampling in other case
-            theta3CM = kin->ReconstructTheta3CMFromLab(TbeamCorr, theta3Lab);
+            theta3CMBefore = kin->ReconstructTheta3CMFromLab(T3Lab, theta3LabSampled) * TMath::RadToDeg(); // this is in deg, because of xs sampling in other case
+            theta3CM = kin->ReconstructTheta3CMFromLab(T3Lab, theta3Lab);
             phi3CM = phi3Lab;
 
             // Heavy
@@ -421,7 +418,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             T4Lab = LorenztVector4->E() - LorenztVector4->M();
         }
 
-        // Fill thetaCMall
+        // Fill thetaCMall and kin
+        hKin->Fill(theta3LabSampled * TMath::RadToDeg(), T3Lab);
         hThetaCMAll->Fill(theta3CMBefore);
         // Extract direction
         hThetaLabAll->Fill(theta3Lab * TMath::RadToDeg());
@@ -626,7 +624,6 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             auto ExRec{kin->ReconstructExcitationEnergy(T3Rec, theta3Lab)};
 
             // Fill
-            hKin->Fill(theta3LabSampled * TMath::RadToDeg(), T3Lab); // before uncertainties implemented
             hKinRec->Fill(theta3Lab * TMath::RadToDeg(), T3Rec);     // after reconstruction
             hEx->Fill(ExRec, weight);
             hRP->Fill(vertex.X(), vertex.Y());
@@ -716,9 +713,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         c0->cd(1);
         hKin->DrawClone("colz");
         // Draw theo kin
-        // kin->SetBeamEnergyAndEx(Tbeam, Ex);
-        // auto* gtheo {kin->GetKinematicLine3()};
-        // gtheo->Draw("l");
+        kinTheo->SetBeamEnergyAndEx(Tbeam, Ex);
+        auto* gtheo {kinTheo->GetKinematicLine3()};
+        gtheo->Draw("same");
         c0->cd(2);
         hKinRec->DrawClone("colz");
         // gtheo->Draw("l");
