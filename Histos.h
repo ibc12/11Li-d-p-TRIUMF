@@ -34,7 +34,7 @@ const ROOT::RDF::TH2DModel RP {"hRP", "RP;X [mm];Y [mm]", 200, -10, 300, 200, -1
 const ROOT::RDF::TH2DModel RP_ZY {"hRP_ZY", "RP;Y [mm];Z [mm]", 200, -10, 300, 200, -10, 300};
 
 // Distance to SP
-const ROOT::RDF::TH1DModel DistanceSP {"hDistanceSP", "Distance to SP;Distance [mm]", 200, 175, 400};
+const ROOT::RDF::TH1DModel DistanceSP {"hDistanceSP", "Distance to SP;Distance [mm]", 200, 0, 400};
 
 // RP vs E
 const ROOT::RDF::TH2DModel RP_E {"hRPE", "RPvsE;RP.X() [mm];E [MeV]", 200, -10, 300, 200, 0, 40};

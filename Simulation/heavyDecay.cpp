@@ -230,14 +230,22 @@ void heavyDecay ()
     hPIDinelasticLength->SetTitle("PID for inelastic length");
     auto hPIDelasticLength {Histos::PIDlength.GetHistogram()};
     hPIDelasticLength->SetTitle("PID for elastic length");
+    auto hPIDAll {Histos::PID.GetHistogram()};
+    hPIDAll->SetTitle("PID for all");
+    auto hPIDAllLength {Histos::PIDlength.GetHistogram()};
+    hPIDAllLength->SetTitle("PID for all length");
 
     // Histos for debuging
     auto hTheta11LiDebug {Histos::ThetaLabHeavy.GetHistogram()};
     hTheta11LiDebug->SetTitle("ThetaLab for 11Li");
     auto hkin11LiDebug {Histos::KinHeavy.GetHistogram()};
     hkin11LiDebug->SetTitle("Heavy kinematics for 11Li");
+    auto hDistances11Li {Histos::DistanceSP.GetHistogram()};
+    hDistances11Li->SetTitle("Distances");
     
     // Loop over the tree
+    // for(int r = 0; r < 10; r++)
+    // {
     for(int i = 0; i < treeTransfer_dp->GetEntries(); i++)
     {
         treeTransfer_dp->GetEntry(i);
@@ -281,7 +289,7 @@ void heavyDecay ()
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
         auto energyAfterInterGas {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceInterGas)};
-        auto DeltaE {TLi11 - energyAfterInterGas};
+        auto DeltaE {TLi11 - energyAfterInside};
         // Finally, slow in silicon
         auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi11)};
         auto eLoss {energyAfterInterGas - energyAfterSil};
@@ -295,6 +303,9 @@ void heavyDecay ()
         {
             hPIDtransfer_dp->Fill(eLoss, DeltaE);
             hPIDtransferLength_dp->Fill(eLoss, DeltaE / distanceInside);
+            hDistances11Li->Fill(RP->X());
+            hPIDAll->Fill(eLoss, DeltaE);
+            hPIDAllLength->Fill(eLoss, DeltaE / distanceInside);
         }
         
 
@@ -319,7 +330,7 @@ void heavyDecay ()
         
 
     }
-
+// }
     // Loop over the tree  dt
     for(int i = 0; i < treeTransfer_dt->GetEntries(); i++)
     {
@@ -364,7 +375,7 @@ void heavyDecay ()
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
         auto energyAfterInterGas {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceInterGas)};
-        auto DeltaE {TLi9 - energyAfterInterGas};
+        auto DeltaE {TLi9 - energyAfterInside};
         // Finally, slow in silicon
         auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi9)};
         auto eLoss {energyAfterInterGas - energyAfterSil};
@@ -376,6 +387,8 @@ void heavyDecay ()
         {
             hPIDtransfer_dt->Fill(eLoss, DeltaE);
             hPIDtransferLength_dt->Fill(eLoss, DeltaE / distanceInside);
+            hPIDAll->Fill(eLoss, DeltaE);
+            hPIDAllLength->Fill(eLoss, DeltaE / distanceInside);
         }
         
 
@@ -401,6 +414,7 @@ void heavyDecay ()
 
     }
     // Loop over the tree of inelastic
+    int counter {0};
     for(int i = 0; i < treeInelastic->GetEntries(); i++)
     {
         treeInelastic->GetEntry(i);
@@ -436,6 +450,10 @@ void heavyDecay ()
         auto energyAfterSil {srim->SlowWithStraggling("9LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness())};
         auto eLoss {energyAfterInterGas - energyAfterSil};
 
+        
+        if(energyAfterInterGas == 0)
+            counter++;
+        
 
         // Fill all the histos
         if(layerHit == "f0")
@@ -455,7 +473,10 @@ void heavyDecay ()
         // PID
         hPIDinelastic->Fill(eLoss, DeltaE);
         hPIDinelasticLength->Fill(eLoss, DeltaE / distanceInside);
+        hPIDAll->Fill(eLoss, DeltaE);
+        hPIDAllLength->Fill(eLoss, DeltaE / distanceInside);
     }
+    std::cout << "Counter: " << counter << std::endl;
     // Loop over the elastic events
     for(int i = 0; i < treeElastic->GetEntries(); i++)
     {
@@ -510,6 +531,8 @@ void heavyDecay ()
         // PID
         hPIDelastic->Fill(eLoss, DeltaE);
         hPIDelasticLength->Fill(eLoss, DeltaE / distanceInside);
+        hPIDAll->Fill(eLoss, DeltaE);
+        hPIDAllLength->Fill(eLoss, DeltaE / distanceInside);
     }
 
 
@@ -529,7 +552,7 @@ void heavyDecay ()
     c1->cd(5);
     hkin9Li->DrawClone("colz");
     c1->cd(6);
-    hkin11LiInelastic->DrawClone("colz");
+    hDistances11Li->DrawClone();
 
 
     auto* cSP {new TCanvas {"cSP", "Sil Points"}};
@@ -577,6 +600,13 @@ void heavyDecay ()
     hPIDelasticLength->DrawClone("colz");
     cPIDs->cd(8);
     hPIDtransferLength_dt->DrawClone("colz");
+
+    auto* cPIDAll {new TCanvas {"cPIDAll", "PID All"}};
+    cPIDAll->DivideSquare(2);
+    cPIDAll->cd(1);
+    hPIDAll->DrawClone("colz");
+    cPIDAll->cd(2);
+    hPIDAllLength->DrawClone("colz");
     }
 
 #endif
