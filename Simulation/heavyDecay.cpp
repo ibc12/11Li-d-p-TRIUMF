@@ -242,6 +242,17 @@ void heavyDecay ()
     hkin11LiDebug->SetTitle("Heavy kinematics for 11Li");
     auto hDistances11Li {Histos::DistanceSP.GetHistogram()};
     hDistances11Li->SetTitle("Distances");
+    // Debug broad blob
+    auto hTheta4LabBroad {Histos::ThetaLabHeavy.GetHistogram()};
+    hTheta4LabBroad->SetTitle("ThetaLab for 11Li");
+    auto hT4LabBroad {Histos::T4Lab.GetHistogram()};
+    hT4LabBroad->SetTitle("T4 for 11Li");
+    auto hkin11LiBroad {Histos::KinHeavy.GetHistogram()};
+    hkin11LiBroad->SetTitle("Heavy kinematics for 11Li");
+    auto hVertexX {Histos::DistanceSP.GetHistogram()};
+    hVertexX->SetTitle("Vertex X");
+    auto hLossGasvsT4Lab {Histos::PID.GetHistogram()};
+    hLossGasvsT4Lab->SetTitle("Loss in gas vs T4");
     
     // Loop over the tree
     // for(int r = 0; r < 10; r++)
@@ -249,6 +260,10 @@ void heavyDecay ()
     for(int i = 0; i < treeTransfer_dp->GetEntries(); i++)
     {
         treeTransfer_dp->GetEntry(i);
+        if(T4Lab < 60.)
+        {
+            continue;
+        }
         // Decay
         hkin12Li->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
         decayGen11Li->SetDecay(T4Lab, theta4Lab, phi4Lab);
@@ -326,7 +341,12 @@ void heavyDecay ()
             hkin11Li->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
             hkin->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
         }
-        // PID
+        // fill broad histos
+        hTheta4LabBroad->Fill(theta4Lab * TMath::RadToDeg());
+        hT4LabBroad->Fill(T4Lab);
+        hkin11LiBroad->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
+        hVertexX->Fill(RP->X());
+        hLossGasvsT4Lab->Fill(T4Lab, DeltaE);
         
 
     }
@@ -414,7 +434,6 @@ void heavyDecay ()
 
     }
     // Loop over the tree of inelastic
-    int counter {0};
     for(int i = 0; i < treeInelastic->GetEntries(); i++)
     {
         treeInelastic->GetEntry(i);
@@ -450,10 +469,6 @@ void heavyDecay ()
         auto energyAfterSil {srim->SlowWithStraggling("9LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness())};
         auto eLoss {energyAfterInterGas - energyAfterSil};
 
-        
-        if(energyAfterInterGas == 0)
-            counter++;
-        
 
         // Fill all the histos
         if(layerHit == "f0")
@@ -476,7 +491,6 @@ void heavyDecay ()
         hPIDAll->Fill(eLoss, DeltaE);
         hPIDAllLength->Fill(eLoss, DeltaE / distanceInside);
     }
-    std::cout << "Counter: " << counter << std::endl;
     // Loop over the elastic events
     for(int i = 0; i < treeElastic->GetEntries(); i++)
     {
@@ -607,6 +621,21 @@ void heavyDecay ()
     hPIDAll->DrawClone("colz");
     cPIDAll->cd(2);
     hPIDAllLength->DrawClone("colz");
-    }
+    
 
+    auto* cBroadBlob {new TCanvas {"cBroadBlob", "Broad Blob"}};
+    cBroadBlob->DivideSquare(6);
+    cBroadBlob->cd(1);
+    hTheta4LabBroad->DrawClone();
+    cBroadBlob->cd(2);
+    hT4LabBroad->DrawClone();
+    cBroadBlob->cd(3);
+    hkin11LiBroad->DrawClone("colz");
+    cBroadBlob->cd(4);
+    hVertexX->DrawClone();
+    cBroadBlob->cd(5);
+    hLossGasvsT4Lab->DrawClone("colz");
+    cBroadBlob->cd(6);
+    hPIDtransferLength_dp->DrawClone("colz");
+}
 #endif
