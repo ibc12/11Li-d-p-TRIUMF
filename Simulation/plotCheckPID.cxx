@@ -43,21 +43,42 @@ void plotCheckPID()
     if (!hkinLi11Li || !hPID11Li || !hPIDLength11Li)
     {
         std::cerr << "Uno o más histogramas no se pudieron cargar." << std::endl;
-        inFile9Li->Close();
         inFile11Li->Close();
+        return;
+    }
+
+    // Abrir el archivo ROOT para 1H
+    TFile* inFile1H = TFile::Open("../DebugOutputs/checkPID_output1H.root", "READ");
+    if (!inFile1H || inFile1H->IsZombie())
+    {
+        std::cerr << "Error al abrir el archivo ROOT" << std::endl;
+        inFile1H->Close();
+        return;
+    }
+    // Recuperar los histogramas
+    auto hPIDLength1H = (TH2D*)inFile1H->Get("hPIDLength");
+    auto hPID1H = (TH2D*)inFile1H->Get("hPID");
+    auto hkinLi1H = (TH2D*)inFile1H->Get("hkinLi");
+    if (!hkinLi1H || !hPID1H || !hPIDLength1H)
+    {
+        std::cerr << "Uno o más histogramas no se pudieron cargar." << std::endl;
+        inFile1H->Close();
         return;
     }
 
     // Canvas para PID
     auto cPID = new TCanvas("cPID", "PID Analysis", 800, 600);
-    cPID->DivideSquare(3);
+    cPID->DivideSquare(4);
     cPID->cd(1);
     hPIDLength9Li->DrawClone("colz");
     cPID->cd(2);
     hPIDLength11Li->DrawClone("colz");
     cPID->cd(3);
+    hPID1H->DrawClone("colz");
+    cPID->cd(4);
     hPIDLength11Li->DrawClone("colz");
     hPIDLength9Li->DrawClone("same");
+    hPIDLength1H->DrawClone("same");
     cPID->SetTitle("PID Length");
 
     inFile9Li->Close();
