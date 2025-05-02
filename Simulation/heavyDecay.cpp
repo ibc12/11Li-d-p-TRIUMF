@@ -59,6 +59,21 @@ void heavyDecay ()
         filedp->ls(); // Listar contenido del archivo para depuración
         return;
     }
+    // Get tree from file of transfer dp for light particle
+    TString fileNameTransfer_dp_light ("../Outputs/7.5MeV/2H_1H_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
+    auto* filedp_light {new TFile(fileNameTransfer_dp, "read")};
+    if (!filedp_light || filedp_light->IsZombie()) 
+    {
+        std::cerr << "Error: No se pudo abrir el archivo " << fileNameTransfer_dp_light << std::endl;
+        return;
+    }
+    auto* treeTransfer_dp_light {static_cast<TTree*>(filedp_light->Get("SimulationTTree"))};
+    if (!treeTransfer_dp_light) 
+    {
+        std::cerr << "Error: No se encontró 'SimulationTTreeHeavy' en el archivo " << fileNameTransfer_dp_light << std::endl;
+        filedp_light->ls(); // Listar contenido del archivo para depuración
+        return;
+    }
     // Get tree from file of transfer dt
     TString fileNameTransfer_dt ("../Outputs/7.5MeV/2H_3H_TRIUMF_Eex_0.000_nPS_0_pPS_0.root");
     auto* filedt {new TFile(fileNameTransfer_dp, "read")};
@@ -168,6 +183,14 @@ void heavyDecay ()
     double phi4Lab {};
     double T4Lab {};
     ROOT::Math::XYZPoint* RP {};
+    double theta3Lab {};
+    double phi3Lab {};
+    double T3Lab {};
+
+    treeTransfer_dp_light->SetBranchAddress("theta3Lab", &theta3Lab);
+    treeTransfer_dp_light->SetBranchAddress("phi3CM", &phi3Lab);
+    treeTransfer_dp_light->SetBranchAddress("EVertex", &T3Lab);
+
     treeTransfer_dp->SetBranchAddress("theta4Lab", &theta4Lab);
     treeTransfer_dp->SetBranchAddress("phi4Lab", &phi4Lab);
     treeTransfer_dp->SetBranchAddress("T4Lab", &T4Lab);
@@ -253,6 +276,13 @@ void heavyDecay ()
     hVertexX->SetTitle("Vertex X");
     auto hLossGasvsT4Lab {Histos::PID.GetHistogram()};
     hLossGasvsT4Lab->SetTitle("Loss in gas vs T4");
+    // Debug broad blob with light particle information
+    auto hTheta3LabBroad {Histos::ThetaLab.GetHistogram()};
+    hTheta3LabBroad->SetTitle("ThetaLab for 1H");
+    auto hT3LabBroad {Histos::T4Lab.GetHistogram()};
+    hT3LabBroad->SetTitle("T3 for 1H");
+    auto hkin1HBroad {Histos::Kin.GetHistogram()};
+    hkin1HBroad->SetTitle("Kinematics for 1H");
     
     // Loop over the tree
     // for(int r = 0; r < 10; r++)
@@ -260,7 +290,8 @@ void heavyDecay ()
     for(int i = 0; i < treeTransfer_dp->GetEntries(); i++)
     {
         treeTransfer_dp->GetEntry(i);
-        if(T4Lab < 60.)
+        treeTransfer_dp_light->GetEntry(i);
+        if(T4Lab > 60.)
         {
             continue;
         }
@@ -347,6 +378,10 @@ void heavyDecay ()
         hkin11LiBroad->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
         hVertexX->Fill(RP->X());
         hLossGasvsT4Lab->Fill(T4Lab, DeltaE);
+        // now for light particle
+        hTheta3LabBroad->Fill(theta3Lab);
+        hT3LabBroad->Fill(T3Lab);
+        hkin1HBroad->Fill(theta3Lab, T3Lab);
         
 
     }
@@ -624,7 +659,7 @@ void heavyDecay ()
     
 
     auto* cBroadBlob {new TCanvas {"cBroadBlob", "Broad Blob"}};
-    cBroadBlob->DivideSquare(6);
+    cBroadBlob->DivideSquare(9);
     cBroadBlob->cd(1);
     hTheta4LabBroad->DrawClone();
     cBroadBlob->cd(2);
@@ -637,5 +672,20 @@ void heavyDecay ()
     hLossGasvsT4Lab->DrawClone("colz");
     cBroadBlob->cd(6);
     hPIDtransferLength_dp->DrawClone("colz");
+    cBroadBlob->cd(7);
+    hTheta3LabBroad->DrawClone();
+    cBroadBlob->cd(8);
+    hT3LabBroad->DrawClone();
+    cBroadBlob->cd(9);
+    hkin1HBroad->DrawClone("colz");
+
+    auto* cBroadLight {new TCanvas {"cBroadLight", "Broad Light"}};
+    cBroadLight->DivideSquare(3);
+    cBroadLight->cd(1);
+    hTheta3LabBroad->DrawClone();
+    cBroadLight->cd(2);
+    hT3LabBroad->DrawClone();   
+    cBroadLight->cd(3);
+    hkin1HBroad->DrawClone("colz");
 }
 #endif
