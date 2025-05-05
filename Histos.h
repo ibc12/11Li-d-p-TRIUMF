@@ -43,12 +43,20 @@ const ROOT::RDF::TH2DModel RP_E {"hRPE", "RPvsE;RP.X() [mm];E [MeV]", 200, -10, 
 const ROOT::RDF::TH1DModel RP_eff {"hRPeff", "RPeff;RP.X() [mm]", 13, 0, 260};
 
 // PID heavy
-const ROOT::RDF::TH2DModel PID {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
+const ROOT::RDF::TH2DModel PIDHeavy {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
                                 30};
 
+// PID light
+const ROOT::RDF::TH2DModel PIDLight {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 50, 350, 0,
+                                10};
+
 // PID heavy length
-const ROOT::RDF::TH2DModel PIDlength {"hPIDlength", "PID length;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
+const ROOT::RDF::TH2DModel PIDHeavylength {"hPIDlength", "PID length;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
                                 0.3};
+
+// PID light length
+const ROOT::RDF::TH2DModel PIDLightlength {"hPIDlength", "PID length;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
+                                0.03};
 
 // Kin
 const ROOT::RDF::TH2DModel Kin {"hKin", "Kinematics;#theta_{light, Lab} [#circ];E_{light} [MeV]", 350, 0, 165, 350, 0,

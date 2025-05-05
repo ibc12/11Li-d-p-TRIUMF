@@ -237,25 +237,25 @@ void heavyDecay ()
     auto hkin11LiElastic {Histos::KinHeavy.GetHistogram()};
     hkin11LiElastic->SetTitle("Heavy kinematics for 11Li elastic");
     // PID's
-    auto hPIDtransfer_dp {Histos::PID.GetHistogram()};
+    auto hPIDtransfer_dp {Histos::PIDHeavy.GetHistogram()};
     hPIDtransfer_dp->SetTitle("PID for transfer dp");
-    auto hPIDtransfer_dt {Histos::PID.GetHistogram()};
+    auto hPIDtransfer_dt {Histos::PIDHeavy.GetHistogram()};
     hPIDtransfer_dt->SetTitle("PID for transfer dt");
-    auto hPIDinelastic {Histos::PID.GetHistogram()};
+    auto hPIDinelastic {Histos::PIDHeavy.GetHistogram()};
     hPIDinelastic->SetTitle("PID for inelastic");
-    auto hPIDelastic {Histos::PID.GetHistogram()};
+    auto hPIDelastic {Histos::PIDHeavy.GetHistogram()};
     hPIDelastic->SetTitle("PID for elastic");
-    auto hPIDtransferLength_dp {Histos::PIDlength.GetHistogram()};
+    auto hPIDtransferLength_dp {Histos::PIDHeavylength.GetHistogram()};
     hPIDtransferLength_dp->SetTitle("PID for transfer length dp");
-    auto hPIDtransferLength_dt {Histos::PIDlength.GetHistogram()};
+    auto hPIDtransferLength_dt {Histos::PIDHeavylength.GetHistogram()};
     hPIDtransferLength_dt->SetTitle("PID for transfer length dt");
-    auto hPIDinelasticLength {Histos::PIDlength.GetHistogram()};
+    auto hPIDinelasticLength {Histos::PIDHeavylength.GetHistogram()};
     hPIDinelasticLength->SetTitle("PID for inelastic length");
-    auto hPIDelasticLength {Histos::PIDlength.GetHistogram()};
+    auto hPIDelasticLength {Histos::PIDHeavylength.GetHistogram()};
     hPIDelasticLength->SetTitle("PID for elastic length");
-    auto hPIDAll {Histos::PID.GetHistogram()};
+    auto hPIDAll {Histos::PIDHeavy.GetHistogram()};
     hPIDAll->SetTitle("PID for all");
-    auto hPIDAllLength {Histos::PIDlength.GetHistogram()};
+    auto hPIDAllLength {Histos::PIDHeavylength.GetHistogram()};
     hPIDAllLength->SetTitle("PID for all length");
 
     // Histos for debuging
@@ -274,7 +274,7 @@ void heavyDecay ()
     hkin11LiBroad->SetTitle("Heavy kinematics for 11Li");
     auto hVertexX {Histos::DistanceSP.GetHistogram()};
     hVertexX->SetTitle("Vertex X");
-    auto hLossGasvsT4Lab {Histos::PID.GetHistogram()};
+    auto hLossGasvsT4Lab {Histos::PIDHeavy.GetHistogram()};
     hLossGasvsT4Lab->SetTitle("Loss in gas vs T4");
     // Debug broad blob with light particle information
     auto hTheta3LabBroad {Histos::ThetaLab.GetHistogram()};

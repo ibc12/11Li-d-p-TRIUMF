@@ -78,7 +78,7 @@ void checkPID()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"3H"};
+    std::string particle {"1H"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_90-10"};
     std::string silicon{"silicon"};
@@ -97,10 +97,25 @@ void checkPID()
     hTheta11LiOut->SetTitle("Theta 11Li out");
     auto hkinLi {Histos::KinHeavy.GetHistogram()};
     // PIDs
-    auto hPID {Histos::PID.GetHistogram()};
-    hPID->SetTitle(("PID for " + particle).c_str());
-    auto hPIDLength {Histos::PIDlength.GetHistogram()};
-    hPIDLength->SetTitle(("PID for " + particle + " length").c_str());
+    std::shared_ptr<TH2D> hPID = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDLength = Histos::PIDLight.GetHistogram();
+
+    if (particle == "1H" || particle == "2H" || particle == "3H" || particle == "3He" || particle == "4He")
+    {
+        hPID = Histos::PIDLight.GetHistogram();
+        hPID->SetTitle(("PID for " + particle).c_str());
+
+        hPIDLength = Histos::PIDLightlength.GetHistogram();
+        hPIDLength->SetTitle(("PID length for " + particle).c_str());
+    }
+    else
+    {
+        hPID = Histos::PIDHeavy.GetHistogram();
+        hPID->SetTitle(("PID for " + particle).c_str());
+
+        hPIDLength = Histos::PIDHeavylength.GetHistogram();
+        hPIDLength->SetTitle(("PID length for " + particle).c_str());
+    }
 
     int counter {0};
 
@@ -113,7 +128,7 @@ void checkPID()
         
         double phiLi11 {gRandom->Uniform(0, 2 * TMath::Pi())};
         double thetaLi11 {gRandom->Uniform(0 * TMath::DegToRad(), 130 * TMath::DegToRad())};
-        std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
+        // std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
         ROOT::Math::XYZVector directionLi11 {TMath::Cos(thetaLi11), TMath::Sin(thetaLi11) * TMath::Sin(phiLi11),
                               TMath::Sin(thetaLi11) * TMath::Cos(phiLi11)};
 
@@ -131,6 +146,8 @@ void checkPID()
                 break;
             }                
         }
+        auto silNormal {sils->GetLayer(layerHit).GetNormal().Unit()};
+        auto angleWithSil {TMath::ACos(directionLi11.Unit().Dot(silNormal))};
         if(silIndex == -1)
         {
             hTheta11LiOut->Fill(thetaLi11 * TMath::RadToDeg());
@@ -169,9 +186,13 @@ void checkPID()
         auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterInside, distanceInterGas)};
         auto DeltaE {TLi11 - energyAfterInside};
         // Finally, slow in silicon
-        auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi11)};
+        auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
 
         double eLoss {energyAfterInterGas - energyAfterSil};
+        if(eLoss > 20)
+        {
+            std::cout<< "Initial energy: " <<TLi11<< " Energy inside: " << energyAfterInside << " Energy after inter gas: " << energyAfterInterGas << " Energy after silicon: " << energyAfterSil << " Angle " <<thetaLi11*TMath::RadToDeg() << " Length in silicon" << sils->GetLayer(layerHit).GetUnit().GetThickness() / TMath::Cos(thetaLi11) <<'\n';
+        }
         //if(layerHit == "f0")
         //{
         //    eLoss = energyAfterInterGas - energyAfterSil;
@@ -203,8 +224,12 @@ void checkPID()
 
         hkinLi->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
 
-        hPID->Fill(eLoss, DeltaE);
-        hPIDLength->Fill(eLoss, DeltaE / distanceInside);
+        if(energyAfterSil == 0)
+        {
+            hPID->Fill(eLoss, DeltaE);
+            hPIDLength->Fill(eLoss, DeltaE / distanceInside);
+        }
+        
     }
     
     auto c {new TCanvas("c", "c", 800, 600)};
