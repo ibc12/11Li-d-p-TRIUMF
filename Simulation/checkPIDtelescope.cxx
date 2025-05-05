@@ -52,7 +52,7 @@ double ComputeDistancef0toPoint(ROOT::Math::XYZVector directionHeavy, ROOT::Math
     return distancef0f2;
 }
 
-void checkPID()
+void checkPIDtelescope()
 {
     // Simulate 11Li transport in chamber
     ActRoot::TPCParameters tpc {"Actar"};
@@ -78,7 +78,7 @@ void checkPID()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"1H"};
+    std::string particle {"4He"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_90-10"};
     std::string silicon{"silicon"};
@@ -122,15 +122,15 @@ void checkPID()
     // 11Li
     for(int i = 0; i < 100000; i++)
     {
-        double TLi11 {gRandom->Uniform(0, 40)}; // MeV
+        double Tparticle {gRandom->Uniform(0, 40)}; // MeV
         
         vertex.SetX(gRandom->Uniform(0,256));
         
-        double phiLi11 {gRandom->Uniform(0, 2 * TMath::Pi())};
-        double thetaLi11 {gRandom->Uniform(0 * TMath::DegToRad(), 130 * TMath::DegToRad())};
+        double phiParticle {gRandom->Uniform(0, 2 * TMath::Pi())};
+        double thetaParticle {gRandom->Uniform(0 * TMath::DegToRad(), 130 * TMath::DegToRad())};
         // std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
-        ROOT::Math::XYZVector directionLi11 {TMath::Cos(thetaLi11), TMath::Sin(thetaLi11) * TMath::Sin(phiLi11),
-                              TMath::Sin(thetaLi11) * TMath::Cos(phiLi11)};
+        ROOT::Math::XYZVector directionParticle {TMath::Cos(thetaParticle), TMath::Sin(thetaParticle) * TMath::Sin(phiParticle),
+                              TMath::Sin(thetaParticle) * TMath::Cos(phiParticle)};
 
 
         // Check hit for the 11Li 
@@ -139,7 +139,7 @@ void checkPID()
         std::string layerHit;
         for(auto layer : silLayers)
         {
-            std::tie(silIndex, silPoint) = sils->FindSPInLayer(layer, vertex, directionLi11);
+            std::tie(silIndex, silPoint) = sils->FindSPInLayer(layer, vertex, directionParticle);
             if(silIndex != -1)
             {
                 layerHit = layer;
@@ -147,10 +147,10 @@ void checkPID()
             }                
         }
         auto silNormal {sils->GetLayer(layerHit).GetNormal().Unit()};
-        auto angleWithSil {TMath::ACos(directionLi11.Unit().Dot(silNormal))};
+        auto angleWithSil {TMath::ACos(directionParticle.Unit().Dot(silNormal))};
         if(silIndex == -1)
         {
-            hTheta11LiOut->Fill(thetaLi11 * TMath::RadToDeg());
+            hTheta11LiOut->Fill(thetaParticle * TMath::RadToDeg());
             if(counter < 50)
             {
                 // Draw lines to check hits
@@ -159,9 +159,9 @@ void checkPID()
                 double z0 = vertex.Z();
                 // Definir la dirección escalada (para visualizar mejor)
                 double scale = 200.0;  // Ajusta el tamaño de la línea
-                double x1 = x0 + scale * directionLi11.X();
-                double y1 = y0 + scale * directionLi11.Y();
-                double z1 = z0 + scale * directionLi11.Z();
+                double x1 = x0 + scale * directionParticle.X();
+                double y1 = y0 + scale * directionParticle.Y();
+                double z1 = z0 + scale * directionParticle.Z();
                 // Crear la línea 3D
                 double x[] = {x0, x1};
                 double y[] = {y0, y1};
@@ -177,22 +177,18 @@ void checkPID()
 
         // Calculation of DeltaE-E
         // First, slow inside detector volume
-        auto limitPointGas {ComputeLimitPoint(directionLi11, vertex)};
+        auto limitPointGas {ComputeLimitPoint(directionParticle, vertex)};
         double distanceInside {(vertex - limitPointGas).R()};
-        auto energyAfterInside {srim->SlowWithStraggling("ParticleGas", TLi11, distanceInside)};
+        auto energyAfterInside {srim->Slow("ParticleGas", Tparticle, distanceInside)};
         // auto DeltaE {TLi11 - energyAfterInside};
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
-        auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterInside, distanceInterGas)};
-        auto DeltaE {TLi11 - energyAfterInside};
+        auto energyAfterInterGas {srim->Slow("ParticleGas", energyAfterInside, distanceInterGas)};
+        auto DeltaE {Tparticle - energyAfterInside};
         // Finally, slow in silicon
         auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
 
         double eLoss {energyAfterInterGas - energyAfterSil};
-        if(eLoss > 20)
-        {
-            std::cout<< "Initial energy: " <<TLi11<< " Energy inside: " << energyAfterInside << " Energy after inter gas: " << energyAfterInterGas << " Energy after silicon: " << energyAfterSil << " Angle " <<thetaLi11*TMath::RadToDeg() << " Length in silicon" << sils->GetLayer(layerHit).GetUnit().GetThickness() / TMath::Cos(thetaLi11) <<'\n';
-        }
         //if(layerHit == "f0")
         //{
         //    eLoss = energyAfterInterGas - energyAfterSil;
@@ -222,12 +218,12 @@ void checkPID()
             hSPf2->Fill(silPoint.Y(), silPoint.Z());
         }
 
-        hkinLi->Fill(thetaLi11 * TMath::RadToDeg(), TLi11);
+        hkinLi->Fill(thetaParticle * TMath::RadToDeg(), Tparticle);
 
         if(energyAfterSil == 0)
         {
             hPID->Fill(eLoss, DeltaE);
-            hPIDLength->Fill(eLoss, DeltaE / distanceInside);
+            hPIDLength->Fill(eLoss, (DeltaE / distanceInside) * 5000);
         }
         
     }
