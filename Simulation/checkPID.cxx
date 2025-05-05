@@ -78,9 +78,13 @@ void checkPID()
     sils->DrawGeo();
 
     // SRIM
+    std::string particle {"3H"};
+    std::string path{"../SRIM files/"};
+    std::string gas{"900mb_CF4_90-10"};
+    std::string silicon{"silicon"};
     auto* srim {new ActPhysics::SRIM};
-    srim->ReadTable("11LiGas", "../SRIM files/11Li_900mb_CF4_90-10.txt");
-    srim->ReadTable("11LiInSil", "../SRIM files/11Li_silicon.txt");
+    srim->ReadTable("ParticleGas", path + particle + "_" + gas + ".txt");
+    srim->ReadTable("ParticleInSil", path + particle + "_" + silicon + ".txt");
 
     ROOT::Math::XYZPoint vertex {128, 128, 128}; // center of TPC
 
@@ -94,21 +98,21 @@ void checkPID()
     auto hkinLi {Histos::KinHeavy.GetHistogram()};
     // PIDs
     auto hPID {Histos::PID.GetHistogram()};
-    hPID->SetTitle("PID for 11Li");
+    hPID->SetTitle(("PID for " + particle).c_str());
     auto hPIDLength {Histos::PIDlength.GetHistogram()};
-    hPIDLength->SetTitle("PID for 11Li length");
+    hPIDLength->SetTitle(("PID for " + particle + " length").c_str());
 
     int counter {0};
 
     // 11Li
     for(int i = 0; i < 100000; i++)
     {
-        double TLi11 {gRandom->Uniform(50, 80)}; // MeV
+        double TLi11 {gRandom->Uniform(0, 40)}; // MeV
         
         vertex.SetX(gRandom->Uniform(0,256));
         
         double phiLi11 {gRandom->Uniform(0, 2 * TMath::Pi())};
-        double thetaLi11 {gRandom->Uniform(3 * TMath::DegToRad(), 7 * TMath::DegToRad())};
+        double thetaLi11 {gRandom->Uniform(0 * TMath::DegToRad(), 130 * TMath::DegToRad())};
         std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
         ROOT::Math::XYZVector directionLi11 {TMath::Cos(thetaLi11), TMath::Sin(thetaLi11) * TMath::Sin(phiLi11),
                               TMath::Sin(thetaLi11) * TMath::Cos(phiLi11)};
@@ -158,14 +162,14 @@ void checkPID()
         // First, slow inside detector volume
         auto limitPointGas {ComputeLimitPoint(directionLi11, vertex)};
         double distanceInside {(vertex - limitPointGas).R()};
-        auto energyAfterInside {srim->SlowWithStraggling("11LiGas", TLi11, distanceInside)};
+        auto energyAfterInside {srim->SlowWithStraggling("ParticleGas", TLi11, distanceInside)};
         // auto DeltaE {TLi11 - energyAfterInside};
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
-        auto energyAfterInterGas {srim->SlowWithStraggling("11LiGas", energyAfterInside, distanceInterGas)};
+        auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterInside, distanceInterGas)};
         auto DeltaE {TLi11 - energyAfterInside};
         // Finally, slow in silicon
-        auto energyAfterSil {srim->SlowWithStraggling("11LiInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi11)};
+        auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), thetaLi11)};
 
         double eLoss {energyAfterInterGas - energyAfterSil};
         //if(layerHit == "f0")
@@ -228,7 +232,7 @@ void checkPID()
 
     
     // Save histos
-    TFile* outFile = new TFile("../DebugOutputs/checkPID_output11Li.root", "RECREATE");
+    TFile* outFile = new TFile(("../DebugOutputs/checkPID_output" + particle  + ".root").c_str(), "RECREATE");
     hkinLi->Write("hkinLi");
     hPID->Write("hPID");
     hPIDLength->Write("hPIDLength");
