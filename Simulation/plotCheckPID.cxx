@@ -7,7 +7,9 @@
 
 void plotCheckPID()
 {
-    std::vector<std::string> particles{"1H", "2H", "3H", "3He", "4He"};
+    bool isTelescope {true}; // Cambiar a true si es telescopio
+
+    std::vector<std::string> particles{"9Li", "11Li"};
     std::vector<TFile*> inFiles;
     std::vector<TH2D*> hkin;
     std::vector<TH2D*> hPID;
@@ -15,7 +17,15 @@ void plotCheckPID()
 
     for (const auto& p : particles)
     {
-        std::string fileName = "../DebugOutputs/checkPID_output" + p + ".root";
+        std::string fileName {};
+        if(isTelescope)
+        {
+            fileName = "../DebugOutputs/checkPID_outputTelescope" + p + ".root";
+        }
+        else
+        {
+            fileName = "../DebugOutputs/checkPID_output" + p + ".root";
+        }
         TFile* file = TFile::Open(fileName.c_str(), "READ");
         if (!file || file->IsZombie())
         {
@@ -56,36 +66,75 @@ void plotCheckPID()
     int nParticles = particles.size();
     cPID->DivideSquare(nParticles + 1);  // Uno por partícula + combinado final
 
-    // Dibujar cada hPIDLength por separado
-    for (size_t i = 0; i < particles.size(); ++i)
+    if(isTelescope)
     {
-        cPID->cd(i + 1);
-        if (hPIDLength[i]) {
-            hPIDLength[i]->DrawClone("colz");
-            gPad->SetTitle(particles[i].c_str());
+        // Dibujar cada hPIDLength por separado
+        for (size_t i = 0; i < particles.size(); ++i)
+        {
+            cPID->cd(i + 1);
+            if (hPID[i]) {
+                hPID[i]->DrawClone("colz");
+                gPad->SetTitle(particles[i].c_str());
+            }
         }
-    }
 
-    // Plot combinado
-    cPID->cd(nParticles + 1);
-    bool firstDrawn = false;
-    for (size_t i = 0; i < particles.size(); ++i)
-    {
-        if (!hPIDLength[i]) continue;
-        auto clone = (TH2D*)hPIDLength[i]->Clone();
-        clone->SetTitle("PID Length: All Particles");
-        clone->SetLineColor(i + 1);  // Diferente color
-        clone->SetMarkerColor(i + 1);
-        clone->SetLineWidth(2);
-        clone->SetStats(0);
-        if (!firstDrawn)
+        // Plot combinado
+        cPID->cd(nParticles + 1);
+        bool firstDrawn = false;
+        for (size_t i = 0; i < particles.size(); ++i)
         {
-            clone->Draw("colz");
-            firstDrawn = true;
-        }
-        else
-        {
-            clone->Draw("colz same");
+            if (!hPID[i]) continue;
+            auto clone = (TH2D*)hPID[i]->Clone();
+            clone->SetTitle("PID Length: All Particles");
+            clone->SetLineColor(i + 1);  // Diferente color
+            clone->SetMarkerColor(i + 1);
+            clone->SetLineWidth(2);
+            clone->SetStats(0);
+            if (!firstDrawn)
+            {
+                clone->Draw("colz");
+                firstDrawn = true;
+            }
+            else
+            {
+                clone->Draw("colz same");
+            }
         }
     }
+    else
+    {
+        // Dibujar cada hPIDLength por separado
+        for (size_t i = 0; i < particles.size(); ++i)
+        {
+            cPID->cd(i + 1);
+            if (hPIDLength[i]) {
+                hPIDLength[i]->DrawClone("colz");
+                gPad->SetTitle(particles[i].c_str());
+            }
+        }
+
+        // Plot combinado
+        cPID->cd(nParticles + 1);
+        bool firstDrawn = false;
+        for (size_t i = 0; i < particles.size(); ++i)
+        {
+            if (!hPIDLength[i]) continue;
+            auto clone = (TH2D*)hPIDLength[i]->Clone();
+            clone->SetTitle("PID Length: All Particles");
+            clone->SetLineColor(i + 1);  // Diferente color
+            clone->SetMarkerColor(i + 1);
+            clone->SetLineWidth(2);
+            clone->SetStats(0);
+            if (!firstDrawn)
+            {
+                clone->Draw("colz");
+                firstDrawn = true;
+            }
+            else
+            {
+                clone->Draw("colz same");
+            }
+        }
+    }
+    
 }

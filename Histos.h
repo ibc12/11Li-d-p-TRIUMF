@@ -56,7 +56,7 @@ const ROOT::RDF::TH2DModel PIDHeavylength {"hPIDlength", "PID length;E_{Sil} [Me
 
 // PID light length
 const ROOT::RDF::TH2DModel PIDLightlength {"hPIDlength", "PID length;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
-                                0.03 * 5000};
+                                0.03};
 
 // Kin
 const ROOT::RDF::TH2DModel Kin {"hKin", "Kinematics;#theta_{light, Lab} [#circ];E_{light} [MeV]", 350, 0, 165, 350, 0,
