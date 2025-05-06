@@ -78,7 +78,7 @@ void checkPIDgas()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"9Li"};
+    std::string particle {"3H"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_90-10"};
     std::string gasJuan{"952mb_mixture"};
@@ -125,7 +125,7 @@ void checkPIDgas()
     {
         double Tparticle {gRandom->Uniform(0, 80)}; // MeV
         
-        vertex.SetX(gRandom->Uniform(0,256));
+        vertex.SetX(120);
         
         double phiParticle {gRandom->Uniform(0, 2 * TMath::Pi())};
         double thetaParticle {gRandom->Uniform(0 * TMath::DegToRad(), 130 * TMath::DegToRad())};
@@ -221,7 +221,7 @@ void checkPIDgas()
 
         hkinLi->Fill(thetaParticle * TMath::RadToDeg(), Tparticle);
 
-        if(energyAfterSil == 0)
+        if(energyAfterSil == 0 && eLoss > 0)
         {
             hPID->Fill(eLoss, DeltaE);
             hPIDLength->Fill(eLoss, (DeltaE / distanceInside));

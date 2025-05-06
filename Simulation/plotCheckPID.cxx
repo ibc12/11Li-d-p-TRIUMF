@@ -10,6 +10,7 @@ void plotCheckPID()
     bool isTelescope {true}; // Cambiar a true si es telescopio
 
     std::vector<std::string> particles{"9Li", "11Li"};
+    // std::vector<std::string> particles{"1H", "2H", "3H", "3He", "4He"};
     std::vector<TFile*> inFiles;
     std::vector<TH2D*> hkin;
     std::vector<TH2D*> hPID;

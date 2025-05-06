@@ -78,7 +78,7 @@ void checkPIDtelescope()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"9Li"};
+    std::string particle {"11Li"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_90-10"};
     std::string silicon{"silicon"};
@@ -187,15 +187,15 @@ void checkPIDtelescope()
         // Calculation of DeltaE-E
         // First, slow before silicon
         double distanceGas {(vertex - silPoint).R()};
-        auto energyBeforeSilicons {srim->Slow("ParticleGas", Tparticle, distanceGas)};
+        auto energyBeforeSilicons {srim->SlowWithStraggling("ParticleGas", Tparticle, distanceGas)};
         // Second, slow in first silicon, DeltaE
         auto energyAfterFirstSil {srim->SlowWithStraggling("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
         auto DeltaE {energyBeforeSilicons - energyAfterFirstSil};
         // Third, slow in gas before second silicon
         auto distanceInterGas {(silPoint - silPoint1).R()};
-        auto energyAfterInterGas {srim->Slow("ParticleGas", energyAfterFirstSil, distanceInterGas)};
+        auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterFirstSil, distanceInterGas)};
         // Finally, slow in second silicon
-        auto energyAfterSecondSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
+        auto energyAfterSecondSil {srim->Slow("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
 
         double eLoss {energyAfterInterGas - energyAfterSecondSil};
         //if(layerHit == "f0")
@@ -229,10 +229,11 @@ void checkPIDtelescope()
 
         hkinLi->Fill(thetaParticle * TMath::RadToDeg(), Tparticle);
 
-        if(energyAfterSecondSil == 0)
+        if(energyAfterSecondSil == 0 && eLoss >0)
         {
             hPID->Fill(eLoss, DeltaE);
             hPIDLength->Fill(eLoss, DeltaE);
+            std::cout <<"Energy Before first silicon: " << energyBeforeSilicons << std::endl;
         }
         
     }
