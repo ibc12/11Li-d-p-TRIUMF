@@ -14,6 +14,7 @@
 #include "TCanvas.h"
 #include "TPolyLine3D.h"
 #include "TFile.h"
+#include "TF1.h"
 
 #include "../Histos.h"
 
@@ -52,6 +53,37 @@ double ComputeDistancef0toPoint(ROOT::Math::XYZVector directionHeavy, ROOT::Math
     return distancef0f2;
 }
 
+double MySlowWithStraggling 	(const std::string &  	material, ActPhysics::SRIM *  	srim, double & udistRef, double & uRiniRef, double & uRafterRef,
+		double  	Tini,
+		double  	thickness,
+		double  	angleInRad = 0,
+		TRandom *  	rand = nullptr )
+{
+    // Compute effective length
+    double dist {thickness / TMath::Cos(angleInRad)};
+    // Initial range
+    auto RIni {srim->EvalRange(material, Tini)};
+    // Initial straggling
+    auto uRini {srim->EvalLongStraggling(material, RIni)};
+    uRiniRef = uRini;
+    // New range
+    auto RAfter {RIni - dist};
+    if(RAfter <= 0)
+        return 0;
+    // Final straggling
+    auto uRAfter {srim->EvalLongStraggling(material, RAfter)};
+    uRafterRef = uRAfter;
+    // Build uncertainty in distance
+    auto udist {TMath::Sqrt(uRini * uRini - uRAfter * uRAfter)};
+    udistRef = udist;
+    // New distance
+    dist = (rand ? rand : gRandom)->Gaus(dist, udist);
+    RAfter = RIni - dist;
+    if(RAfter <= 0)
+        return 0;
+    return srim->EvalEnergy(material, RAfter);
+}
+
 void checkPIDtelescope()
 {
     // Simulate 11Li transport in chamber
@@ -78,7 +110,7 @@ void checkPIDtelescope()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"11Li"};
+    std::string particle {"9Li"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_90-10"};
     std::string silicon{"silicon"};
@@ -96,9 +128,19 @@ void checkPIDtelescope()
     auto hTheta11LiOut {Histos::ThetaLabHeavy.GetHistogram()};
     hTheta11LiOut->SetTitle("Theta 11Li out");
     auto hkinLi {Histos::KinHeavy.GetHistogram()};
+    auto hEsilAftervsBefore {Histos::EsilAftervsBefore.GetHistogram()};
+    hEsilAftervsBefore->SetTitle("EsilAfter vs Ebefore");
     // PIDs
     std::shared_ptr<TH2D> hPID = Histos::PIDLight.GetHistogram();
     std::shared_ptr<TH2D> hPIDLength = Histos::PIDLight.GetHistogram();
+    // Straggling
+    auto hStragglingBegining {Histos::Straggling.GetHistogram()};
+    hStragglingBegining->SetTitle("Straggling begining");
+    auto hStragglingEnd {Histos::Straggling.GetHistogram()};
+    hStragglingEnd->SetTitle("Straggling end");
+    auto hStragglingDistance {Histos::Straggling.GetHistogram()};
+    hStragglingDistance->SetTitle("Straggling distance");
+    auto hEnergyDiferenceWithoutStraggling {new TH1D("hEnergyDiferenceWithoutStraggling", "Energy difference without straggling", 100, -10, 10)};
 
     if (particle == "1H" || particle == "2H" || particle == "3H" || particle == "3He" || particle == "4He")
     {
@@ -118,16 +160,22 @@ void checkPIDtelescope()
     }
 
     int counter {0};
+    bool stragglinSiliconsEnabled {true};
+
 
     // 11Li
     for(int i = 0; i < 100000; i++)
     {
-        double Tparticle {gRandom->Uniform(0, 80)}; // MeV
+        double udistRef {};
+        double uRiniRef {}; 
+        double uRafterRef {};
+
+        double Tparticle {gRandom->Uniform(0,80)}; // MeV
         
         vertex.SetX(gRandom->Uniform(0,256));
         
         double phiParticle {gRandom->Uniform(0, 2 * TMath::Pi())};
-        double thetaParticle {gRandom->Uniform(0 * TMath::DegToRad(), 8 * TMath::DegToRad())};
+        double thetaParticle {0};
         // std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
         ROOT::Math::XYZVector directionParticle {TMath::Cos(thetaParticle), TMath::Sin(thetaParticle) * TMath::Sin(phiParticle),
                               TMath::Sin(thetaParticle) * TMath::Cos(phiParticle)};
@@ -186,18 +234,47 @@ void checkPIDtelescope()
 
         // Calculation of DeltaE-E
         // First, slow before silicon
+        auto limitPointGas {ComputeLimitPoint(directionParticle, vertex)};
+        double distanceInside {(vertex - limitPointGas).R()};
         double distanceGas {(vertex - silPoint).R()};
         auto energyBeforeSilicons {srim->SlowWithStraggling("ParticleGas", Tparticle, distanceGas)};
         // Second, slow in first silicon, DeltaE
-        auto energyAfterFirstSil {srim->SlowWithStraggling("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
+        double energyAfterFirstSil {};
+        double energyDiferenceWithoutStraggling {};
+        if(stragglinSiliconsEnabled)
+        {
+            energyAfterFirstSil = MySlowWithStraggling("ParticleInSil", srim, udistRef, uRiniRef, uRafterRef,energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
+            if(energyAfterFirstSil == 0)
+            {
+                continue;
+            }
+            energyDiferenceWithoutStraggling = energyAfterFirstSil - srim->Slow("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
+            std::cout <<udistRef << std::endl;
+        }
+        else
+        {
+            if(energyAfterFirstSil == 0)
+            {
+                continue;
+            }
+            energyAfterFirstSil = srim->Slow("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
+        }
         auto DeltaE {energyBeforeSilicons - energyAfterFirstSil};
+        if(!stragglinSiliconsEnabled)
+        {
+            DeltaE = gRandom->Gaus(DeltaE, silRes->Eval(DeltaE)); // after silicon resolution
+        }
         // Third, slow in gas before second silicon
         auto distanceInterGas {(silPoint - silPoint1).R()};
         auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterFirstSil, distanceInterGas)};
         // Finally, slow in second silicon
-        auto energyAfterSecondSil {srim->Slow("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
+        auto energyAfterSecondSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer("f3").GetUnit().GetThickness(), angleWithSil)};
 
         double eLoss {energyAfterInterGas - energyAfterSecondSil};
+        if(!stragglinSiliconsEnabled)
+        {
+            eLoss = gRandom->Gaus(eLoss, silRes->Eval(eLoss)); // after silicon resolution
+        }
         //if(layerHit == "f0")
         //{
         //    eLoss = energyAfterInterGas - energyAfterSil;
@@ -232,10 +309,15 @@ void checkPIDtelescope()
         if(energyAfterSecondSil == 0 && eLoss >0)
         {
             hPID->Fill(eLoss, DeltaE);
-            hPIDLength->Fill(eLoss, DeltaE);
-            std::cout <<"Energy Before first silicon: " << energyBeforeSilicons << std::endl;
+            hPIDLength->Fill(eLoss, DeltaE / distanceInside);
+            hEsilAftervsBefore->Fill(DeltaE, energyBeforeSilicons);
+            // std::cout <<"Energy Before first silicon: " << energyBeforeSilicons << std::endl;
+            // std::cout<< - energyBeforeSilicons + eLoss + DeltaE + (energyAfterFirstSil - energyAfterInterGas)  << std::endl;
         }
-        
+        hStragglingDistance->Fill(udistRef * 1000);
+        hStragglingBegining->Fill(uRiniRef * 1000);
+        hStragglingEnd->Fill(uRafterRef * 1000);
+        hEnergyDiferenceWithoutStraggling->Fill(energyDiferenceWithoutStraggling);
     }
     
     auto c {new TCanvas("c", "c", 800, 600)};
@@ -255,19 +337,32 @@ void checkPIDtelescope()
     hkinLi->DrawClone("colz");
 
     auto cPID {new TCanvas("cPID", "cPID", 800, 600)};
-    cPID->DivideSquare(2);
+    cPID->DivideSquare(3);
     cPID->cd(1);
     hPID->DrawClone("colz");
     cPID->cd(2);
     hPIDLength->DrawClone("colz");
+    cPID->cd(3);
+    hEsilAftervsBefore->DrawClone("colz");
+
+    auto cStraggling {new TCanvas("cStraggling", "cStraggling", 800, 600)};
+    cStraggling->DivideSquare(4);
+    cStraggling->cd(1);
+    hStragglingBegining->DrawClone("colz");
+    cStraggling->cd(2);
+    hStragglingEnd->DrawClone("colz");
+    cStraggling->cd(3);
+    hStragglingDistance->DrawClone("colz");
+    cStraggling->cd(4);
+    hEnergyDiferenceWithoutStraggling->DrawClone("colz");
 
     
     // Save histos
-    TFile* outFile = new TFile(("../DebugOutputs/checkPID_outputTelescope" + particle  + ".root").c_str(), "RECREATE");
-    hkinLi->Write("hkinLi");
-    hPID->Write("hPID");
-    hPIDLength->Write("hPIDLength");
-    outFile->Close();
-    delete outFile;
+    // TFile* outFile = new TFile(("../DebugOutputs/checkPID_outputTelescope" + particle  + ".root").c_str(), "RECREATE");
+    // hkinLi->Write("hkinLi");
+    // hPID->Write("hPID");
+    // hPIDLength->Write("hPIDLength");
+    // outFile->Close();
+    // delete outFile;
 }
 #endif

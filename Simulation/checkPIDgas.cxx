@@ -180,14 +180,15 @@ void checkPIDgas()
         // First, slow inside detector volume
         auto limitPointGas {ComputeLimitPoint(directionParticle, vertex)};
         double distanceInside {(vertex - limitPointGas).R()};
-        auto energyAfterInside {srim->SlowWithStraggling("ParticleGas", Tparticle, distanceInside)};
+        auto energyAfterInside {srim->Slow("ParticleGas", Tparticle, distanceInside)};
         // auto DeltaE {TLi11 - energyAfterInside};
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
-        auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterInside, distanceInterGas)};
+        auto energyAfterInterGas {srim->Slow("ParticleGas", energyAfterInside, distanceInterGas)};
         auto DeltaE {Tparticle - energyAfterInside};
+        //DeltaE = gRandom->Gaus(DeltaE, silRes->Eval(DeltaE)); // after silicon resolution
         // Finally, slow in silicon
-        auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
+        auto energyAfterSil {srim->Slow("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
 
         double eLoss {energyAfterInterGas - energyAfterSil};
         //if(layerHit == "f0")
