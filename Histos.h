@@ -42,6 +42,13 @@ const ROOT::RDF::TH2DModel RP_E {"hRPE", "RPvsE;RP.X() [mm];E [MeV]", 200, -10, 
 // Eficiency RP
 const ROOT::RDF::TH1DModel RP_eff {"hRPeff", "RPeff;RP.X() [mm]", 13, 0, 260};
 
+// Straggling
+const ROOT::RDF::TH1DModel Straggling {"hStraggling", "Straggling;Straggling [#mum]", 30, 0, 25};
+
+// Esil vs EbeforeSil
+const ROOT::RDF::TH2DModel EsilAftervsBefore {"hEsilAftervsBefore", "EsilAftervsBefore;E_{Sil} [MeV];#E_{before sil} [MeV]", 350, 0, 90, 350, 0,
+                                70};
+
 // PID heavy
 const ROOT::RDF::TH2DModel PIDHeavy {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
                                 30};
