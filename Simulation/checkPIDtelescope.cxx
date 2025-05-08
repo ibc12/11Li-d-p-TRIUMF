@@ -61,100 +61,6 @@ double ComputeDistancef0toPoint(ROOT::Math::XYZVector directionHeavy, ROOT::Math
     return distancef0f2;
 }
 
-double MySlowWithStraggling 	(const std::string &  	material, ActPhysics::SRIM *  	srim, double & udistRef, double & uRiniRef, double & uRafterRef,
-		double  	Tini,
-		double  	thickness,
-		double  	angleInRad = 0,
-		TRandom *  	rand = nullptr,
-        TSpline3* stragglingLISE = nullptr)
-{
-    // Compute effective length
-    double dist {thickness / TMath::Cos(angleInRad)};
-    // Initial range
-    auto RIni {srim->EvalRange(material, Tini)};
-    // Initial straggling
-    double uRini {};
-    if(stragglingLISE == nullptr)
-    {
-        auto uRini {srim->EvalLongStraggling(material, RIni)};
-    }
-    else{
-        auto uRini {stragglingLISE->Eval(RIni)};
-    }
-    
-    uRiniRef = uRini;
-    // New range
-    auto RAfter {RIni - dist};
-    if(RAfter <= 0)
-        return 0;
-    // Final straggling
-    double uRAfter {};
-    if(stragglingLISE == nullptr)
-    {
-        auto uRAfter {srim->EvalLongStraggling(material, RAfter)};
-    }
-    else{
-        auto uRAfter {stragglingLISE->Eval(RAfter)};
-    }
-    uRafterRef = uRAfter;
-    // Build uncertainty in distance
-    auto udist {TMath::Sqrt(uRini * uRini - uRAfter * uRAfter)};
-    udistRef = udist;
-    // New distance
-    dist = (rand ? rand : gRandom)->Gaus(dist, udist);
-    RAfter = RIni - dist;
-    if(RAfter <= 0)
-        return 0;
-    return srim->EvalEnergy(material, RAfter);
-}
-
-TSpline3* getSplineStragglingLISE(std::string fileName) {
-    std::ifstream file(fileName);
-    if (!file.is_open()) {
-        std::cerr << "No se pudo abrir el archivo." << std::endl;
-        return;
-    }
-
-    std::string line;
-    // Skip 3 first rows
-    for (int i = 0; i < 3; ++i)
-        std::getline(file, line);
-
-    std::vector<double> col1, col4, col12;
-
-    while (std::getline(file, line)) {
-        std::istringstream ss(line);
-        std::string token;
-        std::vector<std::string> tokens;
-
-        // Separate by spaces/tabs
-        while (ss >> token) {
-            tokens.push_back(token);
-        }
-
-        if (tokens.size() >= 12) {
-            col1.push_back(std::stod(tokens[0]));
-            col4.push_back(std::stod(tokens[3]));
-            col12.push_back(std::stod(tokens[11]));
-        }
-    }
-
-    file.close();
-
-    // Get spline for col4 (range) and col12 (straggling)
-    TSpline3* spline = new TSpline3("Range-Straggling LISE", &col4[0], &col12[0], col4.size(), "b2,e2", 0., 0.);
-
-
-    // Ejemplo de impresión de los primeros valores
-    // for (size_t i = 0; i < col1.size(); ++i) {
-    //     std::cout << "Fila " << i+1 << ": "
-    //               << "Col1 = " << col1[i] << ", "
-    //               << "Col4 = " << col4[i] << ", "
-    //               << "Col12 = " << col12[i] << std::endl;
-    // }
-    return spline;
-}
-
 void checkPIDtelescope()
 {
     // Simulate 11Li transport in chamber
@@ -189,8 +95,9 @@ void checkPIDtelescope()
     srim->ReadTable("ParticleGas", path + particle + "_" + gas + ".txt");
     srim->ReadTable("ParticleInSil", path + particle + "_" + silicon + ".txt");
     // LISE 
-    std::string fileLISE {"../LISE files/" + particle + "_silicon.txt"};
-    auto splineStragglingLISE {getSplineStragglingLISE(fileLISE)};
+    std::string fileLISE {"../LISE files/11Li_silicon.txt"};
+    // auto splineStragglingLISE {getSplineStragglingLISE(fileLISE)};
+    srim->SetStragglingLISE("ParticleInSil", fileLISE);
 
     ROOT::Math::XYZPoint vertex {128, 128, 128}; // center of TPC
 
@@ -249,7 +156,7 @@ void checkPIDtelescope()
         vertex.SetX(gRandom->Uniform(0,256));
         
         double phiParticle {gRandom->Uniform(0, 2 * TMath::Pi())};
-        double thetaParticle {0};
+        double thetaParticle {gRandom->Uniform(0, 8 * TMath::DegToRad())}; 
         // std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
         ROOT::Math::XYZVector directionParticle {TMath::Cos(thetaParticle), TMath::Sin(thetaParticle) * TMath::Sin(phiParticle),
                               TMath::Sin(thetaParticle) * TMath::Cos(phiParticle)};
@@ -317,21 +224,20 @@ void checkPIDtelescope()
         double energyDiferenceWithoutStraggling {};
         if(stragglinSiliconsEnabled)
         {
-            energyAfterFirstSil = MySlowWithStraggling("ParticleInSil", srim, udistRef, uRiniRef, uRafterRef,energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
+            energyAfterFirstSil = srim->SlowWithStraggling("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
             if(energyAfterFirstSil == 0)
             {
                 continue;
             }
             energyDiferenceWithoutStraggling = energyAfterFirstSil - srim->Slow("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
-            std::cout <<udistRef << std::endl;
         }
         else
         {
+            energyAfterFirstSil = srim->Slow("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
             if(energyAfterFirstSil == 0)
             {
                 continue;
             }
-            energyAfterFirstSil = srim->Slow("ParticleInSil", energyBeforeSilicons, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil);
         }
         auto DeltaE {energyBeforeSilicons - energyAfterFirstSil};
         if(!stragglinSiliconsEnabled)
