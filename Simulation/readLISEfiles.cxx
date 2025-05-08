@@ -38,10 +38,10 @@ void readLISEfiles() {
     file.close();
 
     // Ejemplo de impresión de los primeros valores
-    for (size_t i = 0; i < col1.size(); ++i) {
-        std::cout << "Fila " << i+1 << ": "
-                  << "Col1 = " << col1[i] << ", "
-                  << "Col4 = " << col4[i] << ", "
-                  << "Col12 = " << col12[i] << std::endl;
-    }
+    // for (size_t i = 0; i < col1.size(); ++i) {
+    //     std::cout << "Fila " << i+1 << ": "
+    //               << "Col1 = " << col1[i] << ", "
+    //               << "Col4 = " << col4[i] << ", "
+    //               << "Col12 = " << col12[i] << std::endl;
+    // }
 }

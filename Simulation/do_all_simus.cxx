@@ -74,7 +74,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 {
     // Ex = 0.435;
     // Set number of iterations
-    auto niter{static_cast<int>(1e5)};
+    auto niter{static_cast<int>(1e6)};
     gRandom->SetSeed(0);
     // Initialize detectors
     // TPC
