@@ -95,9 +95,10 @@ void checkPIDtelescope()
     srim->ReadTable("ParticleGas", path + particle + "_" + gas + ".txt");
     srim->ReadTable("ParticleInSil", path + particle + "_" + silicon + ".txt");
     // LISE 
-    std::string fileLISE {"../LISE files/11Li_silicon.txt"};
-    // auto splineStragglingLISE {getSplineStragglingLISE(fileLISE)};
+    std::string fileLISE {"../LISE files/" + particle + "_silicon.txt"};
+    //std::string fileLISEgas {"../LISE files/" + particle + "_gas.txt"};
     srim->SetStragglingLISE("ParticleInSil", fileLISE);
+    //srim->SetStragglingLISE("ParticleInGas", fileLISEgas);
 
     ROOT::Math::XYZPoint vertex {128, 128, 128}; // center of TPC
 
@@ -338,11 +339,11 @@ void checkPIDtelescope()
 
     
     // Save histos
-    // TFile* outFile = new TFile(("../DebugOutputs/checkPID_outputTelescope" + particle  + ".root").c_str(), "RECREATE");
-    // hkinLi->Write("hkinLi");
-    // hPID->Write("hPID");
-    // hPIDLength->Write("hPIDLength");
-    // outFile->Close();
-    // delete outFile;
+    TFile* outFile = new TFile(("../DebugOutputs/checkPID_outputTelescope" + particle  + ".root").c_str(), "RECREATE");
+    hkinLi->Write("hkinLi");
+    hPID->Write("hPID");
+    hPIDLength->Write("hPIDLength");
+    outFile->Close();
+    delete outFile;
 }
 #endif

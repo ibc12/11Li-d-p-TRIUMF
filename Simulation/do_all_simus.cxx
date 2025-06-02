@@ -82,7 +82,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     std::cout << "TPC: " << tpc.X() << " " << tpc.Y() << " " << tpc.Z() << '\n';
     // Silicons
     auto *sils{new ActPhysics::SilSpecs};
-    sils->ReadFile("../configs/silicons_reverse.conf");
+    sils->ReadFile("../configs/silicons_telescope.conf");
     sils->Print();
     const double sigmaSil{0.060 / 2.355}; // Si resolution
     auto silRes = std::make_unique<TF1>(
@@ -95,7 +95,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     {
         if (name == "f0" || name == "f1")
             layer.MoveZTo(75, {3});
-        if(name == "f2")
+        if(name == "f2" || name == "f3")
             layer.MoveZTo(125, {0});
         if (name == "l0" || name == "r0")
             layer.MoveZTo(75, {3});
@@ -115,7 +115,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     // SRIM
     auto *srim{new ActPhysics::SRIM};
     std::string path{"../SRIM files/"};
-    std::string gas{"900mb_CF4_90-10"};
+    std::string gas{"900mb_CF4_95-5"};
     std::string silicon{"silicon"};
     srim->ReadTable("light", path + light + "_" + gas + ".txt");
     srim->ReadTable("beam", path + beam + "_" + gas + ".txt");

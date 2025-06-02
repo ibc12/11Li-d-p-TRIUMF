@@ -78,7 +78,7 @@ void checkPIDgas()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"3H"};
+    std::string particle {"1H"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_90-10"};
     std::string gasJuan{"952mb_mixture"};
@@ -86,6 +86,10 @@ void checkPIDgas()
     auto* srim {new ActPhysics::SRIM};
     srim->ReadTable("ParticleGas", path + particle + "_" + gas + ".txt");
     srim->ReadTable("ParticleInSil", path + particle + "_" + silicon + ".txt");
+    std::string fileLISE {"../LISE files/" + particle + "_silicon.txt"};
+    std::string fileLISEgas {"../LISE files/" + particle + "_gas.txt"};
+    srim->SetStragglingLISE("ParticleInSil", fileLISE);
+    //srim->SetStragglingLISE("ParticleInGas", fileLISEgas);
 
     ROOT::Math::XYZPoint vertex {128, 128, 128}; // center of TPC
 
@@ -121,7 +125,7 @@ void checkPIDgas()
     int counter {0};
 
     // 11Li
-    for(int i = 0; i < 100000; i++)
+    for(int i = 0; i < 1000000; i++)
     {
         double Tparticle {gRandom->Uniform(0, 80)}; // MeV
         
@@ -180,15 +184,15 @@ void checkPIDgas()
         // First, slow inside detector volume
         auto limitPointGas {ComputeLimitPoint(directionParticle, vertex)};
         double distanceInside {(vertex - limitPointGas).R()};
-        auto energyAfterInside {srim->Slow("ParticleGas", Tparticle, distanceInside)};
+        auto energyAfterInside {srim->SlowWithStraggling("ParticleGas", Tparticle, distanceInside)};
         // auto DeltaE {TLi11 - energyAfterInside};
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
-        auto energyAfterInterGas {srim->Slow("ParticleGas", energyAfterInside, distanceInterGas)};
+        auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterInside, distanceInterGas)};
         auto DeltaE {Tparticle - energyAfterInside};
         //DeltaE = gRandom->Gaus(DeltaE, silRes->Eval(DeltaE)); // after silicon resolution
         // Finally, slow in silicon
-        auto energyAfterSil {srim->Slow("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
+        auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
 
         double eLoss {energyAfterInterGas - energyAfterSil};
         //if(layerHit == "f0")
@@ -224,10 +228,13 @@ void checkPIDgas()
 
         if(energyAfterSil == 0 && eLoss > 0)
         {
+        }
+        if(layerHit == "l0" || layerHit == "r0")
+        {
             hPID->Fill(eLoss, DeltaE);
             hPIDLength->Fill(eLoss, (DeltaE / distanceInside));
         }
-        
+            
     }
     
     auto c {new TCanvas("c", "c", 800, 600)};

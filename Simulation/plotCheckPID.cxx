@@ -7,10 +7,10 @@
 
 void plotCheckPID()
 {
-    bool isTelescope {true}; // Cambiar a true si es telescopio
+    bool isTelescope {false}; // Cambiar a true si es telescopio
 
-    std::vector<std::string> particles{"9Li", "11Li"};
-    // std::vector<std::string> particles{"1H", "2H", "3H", "3He", "4He"};
+    // std::vector<std::string> particles{"9Li", "11Li"};
+    std::vector<std::string> particles{"1H", "2H", "3H"};
     std::vector<TFile*> inFiles;
     std::vector<TH2D*> hkin;
     std::vector<TH2D*> hPID;
@@ -41,6 +41,8 @@ void plotCheckPID()
 
         auto hkinHist = (TH2D*)file->Get("hkinLi");
         auto hPIDHist = (TH2D*)file->Get("hPID");
+        hPIDHist->GetYaxis()->SetTitle("#DeltaE_{sil1}");
+        hPIDHist->GetXaxis()->SetTitle("#DeltaE_{sil2}");
         auto hPIDLengthHist = (TH2D*)file->Get("hPIDLength");
 
         if (!hkinHist || !hPIDHist || !hPIDLengthHist)

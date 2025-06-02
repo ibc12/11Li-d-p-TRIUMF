@@ -599,7 +599,7 @@ void do_simu(const std::string& beam, const std::string& target, const std::stri
         }
     }
 
-    outFile->Write();
+    // outFile->Write();
     outFile->Close();
 
     // Compute efficiency
