@@ -82,7 +82,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     std::cout << "TPC: " << tpc.X() << " " << tpc.Y() << " " << tpc.Z() << '\n';
     // Silicons
     auto *sils{new ActPhysics::SilSpecs};
-    sils->ReadFile("../configs/silicons_telescope.conf");
+    sils->ReadFile("../configs/silicons_closer.conf");
     sils->Print();
     const double sigmaSil{0.060 / 2.355}; // Si resolution
     auto silRes = std::make_unique<TF1>(
@@ -172,6 +172,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     auto hRP_ZY{Histos::RP_ZY.GetHistogram()};
     auto hThetaCMAll{Histos::ThetaCM.GetHistogram()};
     auto hThetaCM{Histos::ThetaCM.GetHistogram()};
+    auto hThetaCMSilicon{Histos::ThetaCM.GetHistogram()};
     auto hThetaLabAll{Histos::ThetaLab.GetHistogram()};
     auto hThetaLab{Histos::ThetaLab.GetHistogram()};
     auto hEx{Histos::Ex.GetHistogram()};
@@ -644,6 +645,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 hTheta3LabReachLatSil->Fill(theta3Lab * TMath::RadToDeg());
                 hKinLatSilReach->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
             }
+            hThetaCMSilicon->Fill(theta3CMBefore); // Other hThetaCM has efficiency for L1 events also
             hThetaCM->Fill(theta3CMBefore); // only thetaCm that enter our cuts
             hThetaLab->Fill(theta3Lab * TMath::RadToDeg());
             hThetaCMThetaLab->Fill(theta3CMBefore, theta3LabSampled * TMath::RadToDeg());
@@ -720,6 +722,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         hKinRec->DrawClone("colz");
         // gtheo->Draw("l");
         c0->cd(3);
+        hThetaCMSilicon->DrawClone("colz");
         c0->cd(4);
         hRP->DrawClone("colz");
         c0->cd(5);
