@@ -3,23 +3,27 @@
 #include "TCanvas.h"
 
 #include <iostream>
-
+#include <vector>
+#include <string>
 
 void plotCheckPID()
 {
-    bool isTelescope {false}; // Cambiar a true si es telescopio
+    bool isTelescope {true}; // Cambiar a true si es telescopio
 
-    // std::vector<std::string> particles{"9Li", "11Li"};
-    std::vector<std::string> particles{"1H", "2H", "3H"};
-    std::vector<TFile*> inFiles;
-    std::vector<TH2D*> hkin;
-    std::vector<TH2D*> hPID;
-    std::vector<TH2D*> hPIDLength;
+    std::vector<std::string> particles{"9Li", "11Li"};
+    // std::vector<std::string> particles{"1H", "2H", "3H"};
+    std::vector<TFile*>       inFiles;
+    std::vector<TH2D*>        hkin;
+    std::vector<TH2D*>        hPIDfront;
+    std::vector<TH2D*>        hPIDLengthfront;
+    std::vector<TH2D*>        hPIDside;
+    std::vector<TH2D*>        hPIDLengthside;
 
+    // 1) Abrimos todos los archivos y extraemos los histogramas correspondientes
     for (const auto& p : particles)
     {
-        std::string fileName {};
-        if(isTelescope)
+        std::string fileName;
+        if (isTelescope)
         {
             fileName = "../DebugOutputs/checkPID_outputTelescope" + p + ".root";
         }
@@ -27,117 +31,219 @@ void plotCheckPID()
         {
             fileName = "../DebugOutputs/checkPID_output" + p + ".root";
         }
+
         TFile* file = TFile::Open(fileName.c_str(), "READ");
         if (!file || file->IsZombie())
         {
-            std::cerr << "Error al abrir el archivo ROOT para " << p << std::endl;
+            std::cout << "Error al abrir el archivo ROOT para " << p << std::endl;
             inFiles.push_back(nullptr);
             hkin.push_back(nullptr);
-            hPID.push_back(nullptr);
-            hPIDLength.push_back(nullptr);
+            hPIDfront.push_back(nullptr);
+            hPIDLengthfront.push_back(nullptr);
+            hPIDside.push_back(nullptr);
+            hPIDLengthside.push_back(nullptr);
             if (file) file->Close();
             continue;
         }
 
-        auto hkinHist = (TH2D*)file->Get("hkinLi");
-        auto hPIDHist = (TH2D*)file->Get("hPID");
-        hPIDHist->GetYaxis()->SetTitle("#DeltaE_{sil1}");
-        hPIDHist->GetXaxis()->SetTitle("#DeltaE_{sil2}");
-        auto hPIDLengthHist = (TH2D*)file->Get("hPIDLength");
+        // Nombres exactos de los objetos dentro del .root
+        auto hkinHist            = (TH2D*)file->Get("hkinLi");
+        auto hPIDHistfront       = (TH2D*)file->Get("hPIDfront");
+        auto hPIDLengthHistfront = (TH2D*)file->Get("hPIDLengthfront");
+        auto hPIDHistside        = (TH2D*)file->Get("hPIDside");
+        auto hPIDLengthHistside  = (TH2D*)file->Get("hPIDLengthside");
 
-        if (!hkinHist || !hPIDHist || !hPIDLengthHist)
+        if (!hkinHist || !hPIDHistfront || !hPIDLengthHistfront || !hPIDHistside || !hPIDLengthHistside)
         {
-            std::cerr << "Uno o más histogramas no se pudieron cargar para " << p << std::endl;
+            std::cout << "Uno o más histogramas no se pudieron cargar para " << p << std::endl;
             file->Close();
             inFiles.push_back(nullptr);
             hkin.push_back(nullptr);
-            hPID.push_back(nullptr);
-            hPIDLength.push_back(nullptr);
+            hPIDfront.push_back(nullptr);
+            hPIDLengthfront.push_back(nullptr);
+            hPIDside.push_back(nullptr);
+            hPIDLengthside.push_back(nullptr);
             continue;
         }
 
-        hPIDLengthHist->SetTitle(("PID Length for " + p).c_str());
+        // Ajustamos títulos de los histogramas “length”
+        hPIDLengthHistfront->SetTitle(("PID Length for front " + p).c_str());
+        hPIDLengthHistside->SetTitle(("PID Length for side  " + p).c_str());
 
+        // Guardamos punteros en los vectores correspondientes
         inFiles.push_back(file);
         hkin.push_back(hkinHist);
-        hPID.push_back(hPIDHist);
-        hPIDLength.push_back(hPIDLengthHist);
+        hPIDfront.push_back(hPIDHistfront);
+        hPIDLengthfront.push_back(hPIDLengthHistfront);
+        hPIDside.push_back(hPIDHistside);
+        hPIDLengthside.push_back(hPIDLengthHistside);
     }
 
-    // Crear canvas para PID
-    auto cPID = new TCanvas("cPID", "PID Analysis", 1200, 800);
     int nParticles = particles.size();
-    cPID->DivideSquare(nParticles + 1);  // Uno por partícula + combinado final
 
-    if(isTelescope)
+    // 2) CANVAS para “front”
+    auto cPIDfront = new TCanvas("cPID_front", "PID Analysis - Front Silicons", 1200, 800);
+    cPIDfront->DivideSquare(nParticles + 1);  // Una columna por partícula + un plot combinado final
+
+    if (isTelescope)
     {
-        // Dibujar cada hPIDLength por separado
+        // Dibujar cada hPIDfront (Telescopio) en su pad
         for (size_t i = 0; i < particles.size(); ++i)
         {
-            cPID->cd(i + 1);
-            if (hPID[i]) {
-                hPID[i]->DrawClone("colz");
+            cPIDfront->cd(i + 1);
+            if (hPIDfront[i])
+            {
+                hPIDfront[i]->DrawClone("colz");
+                hPIDfront[i]->GetYaxis()->SetTitle("#DeltaE_{sil1}");
+                hPIDfront[i]->GetXaxis()->SetTitle("#DeltaE_{sil2}");
                 gPad->SetTitle(particles[i].c_str());
             }
         }
 
-        // Plot combinado
-        cPID->cd(nParticles + 1);
-        bool firstDrawn = false;
+        // Plot combinado (todos los hPIDfront juntos)
+        cPIDfront->cd(nParticles + 1);
+        bool firstDrawnF = false;
         for (size_t i = 0; i < particles.size(); ++i)
         {
-            if (!hPID[i]) continue;
-            auto clone = (TH2D*)hPID[i]->Clone();
-            clone->SetTitle("PID Length: All Particles");
-            clone->SetLineColor(i + 1);  // Diferente color
+            if (!hPIDfront[i]) continue;
+            auto clone = (TH2D*)hPIDfront[i]->Clone();
+            clone->SetTitle("PID Front: All Particles");
+            clone->GetYaxis()->SetTitle("#DeltaE_{sil1}");
+            clone->GetXaxis()->SetTitle("#DeltaE_{sil2}");
+            clone->SetLineColor(i + 1);
             clone->SetMarkerColor(i + 1);
             clone->SetLineWidth(2);
             clone->SetStats(0);
-            if (!firstDrawn)
+
+            if (!firstDrawnF)
             {
-                clone->Draw("colz");
-                firstDrawn = true;
+                clone->DrawClone("colz");
+                firstDrawnF = true;
             }
             else
             {
-                clone->Draw("colz same");
+                clone->DrawClone("colz same");
             }
         }
     }
     else
     {
-        // Dibujar cada hPIDLength por separado
+        // Dibujar cada hPIDLengthfront (sin telescopio) en su pad
         for (size_t i = 0; i < particles.size(); ++i)
         {
-            cPID->cd(i + 1);
-            if (hPIDLength[i]) {
-                hPIDLength[i]->DrawClone("colz");
+            cPIDfront->cd(i + 1);
+            if (hPIDLengthfront[i])
+            {
+                hPIDLengthfront[i]->DrawClone("colz");
                 gPad->SetTitle(particles[i].c_str());
             }
         }
 
-        // Plot combinado
-        cPID->cd(nParticles + 1);
-        bool firstDrawn = false;
+        // Plot combinado para “front length”
+        cPIDfront->cd(nParticles + 1);
+        bool firstDrawnFL = false;
         for (size_t i = 0; i < particles.size(); ++i)
         {
-            if (!hPIDLength[i]) continue;
-            auto clone = (TH2D*)hPIDLength[i]->Clone();
-            clone->SetTitle("PID Length: All Particles");
-            clone->SetLineColor(i + 1);  // Diferente color
+            if (!hPIDLengthfront[i]) continue;
+            auto clone = (TH2D*)hPIDLengthfront[i]->Clone();
+            clone->SetTitle("PID Length Front: All Particles");
+            clone->SetLineColor(i + 1);
             clone->SetMarkerColor(i + 1);
             clone->SetLineWidth(2);
             clone->SetStats(0);
-            if (!firstDrawn)
+
+            if (!firstDrawnFL)
             {
-                clone->Draw("colz");
-                firstDrawn = true;
+                clone->DrawClone("colz");
+                firstDrawnFL = true;
             }
             else
             {
-                clone->Draw("colz same");
+                clone->DrawClone("colz same");
             }
         }
     }
-    
+
+    // 3) CANVAS para “side”
+    auto cPIDside = new TCanvas("cPID_side", "PID Analysis - Side Silicons", 1200, 800);
+    cPIDside->DivideSquare(nParticles + 1);
+
+    if (isTelescope)
+    {
+        // Dibujar cada hPIDside (Telescopio) en su pad
+        for (size_t i = 0; i < particles.size(); ++i)
+        {
+            cPIDside->cd(i + 1);
+            if (hPIDside[i])
+            {
+                hPIDside[i]->DrawClone("colz");
+                hPIDside[i]->GetYaxis()->SetTitle("#DeltaE_{sil1}");
+                hPIDside[i]->GetXaxis()->SetTitle("#DeltaE_{sil2}");
+                gPad->SetTitle(particles[i].c_str());
+            }
+        }
+
+        // Plot combinado (todos los hPIDside juntos)
+        cPIDside->cd(nParticles + 1);
+        bool firstDrawnS = false;
+        for (size_t i = 0; i < particles.size(); ++i)
+        {
+            if (!hPIDside[i]) continue;
+            auto clone = (TH2D*)hPIDside[i]->Clone();
+            clone->SetTitle("PID Side: All Particles");
+            clone->GetYaxis()->SetTitle("#DeltaE_{sil1}");
+            clone->GetXaxis()->SetTitle("#DeltaE_{sil2}");
+            clone->SetLineColor(i + 1);
+            clone->SetMarkerColor(i + 1);
+            clone->SetLineWidth(2);
+            clone->SetStats(0);
+
+            if (!firstDrawnS)
+            {
+                clone->DrawClone("colz");
+                firstDrawnS = true;
+            }
+            else
+            {
+                clone->DrawClone("colz same");
+            }
+        }
+    }
+    else
+    {
+        // Dibujar cada hPIDLengthside (sin telescopio) en su pad
+        for (size_t i = 0; i < particles.size(); ++i)
+        {
+            cPIDside->cd(i + 1);
+            if (hPIDLengthside[i])
+            {
+                hPIDLengthside[i]->DrawClone("colz");
+                gPad->SetTitle(particles[i].c_str());
+            }
+        }
+
+        // Plot combinado para “side length”
+        cPIDside->cd(nParticles + 1);
+        bool firstDrawnSL = false;
+        for (size_t i = 0; i < particles.size(); ++i)
+        {
+            if (!hPIDLengthside[i]) continue;
+            auto clone = (TH2D*)hPIDLengthside[i]->Clone();
+            clone->SetTitle("PID Length Side: All Particles");
+            clone->SetLineColor(i + 1);
+            clone->SetMarkerColor(i + 1);
+            clone->SetLineWidth(2);
+            clone->SetStats(0);
+
+            if (!firstDrawnSL)
+            {
+                clone->DrawClone("colz");
+                firstDrawnSL = true;
+            }
+            else
+            {
+                clone->DrawClone("colz same");
+            }
+        }
+    }
 }

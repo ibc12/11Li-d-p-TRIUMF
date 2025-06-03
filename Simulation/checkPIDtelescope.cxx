@@ -96,9 +96,9 @@ void checkPIDtelescope()
     srim->ReadTable("ParticleInSil", path + particle + "_" + silicon + ".txt");
     // LISE 
     std::string fileLISE {"../LISE files/" + particle + "_silicon.txt"};
-    //std::string fileLISEgas {"../LISE files/" + particle + "_gas.txt"};
+    std::string fileLISEgas {"../LISE files/" + particle + "_gas_95-5.txt"};
     srim->SetStragglingLISE("ParticleInSil", fileLISE);
-    //srim->SetStragglingLISE("ParticleInGas", fileLISEgas);
+    srim->SetStragglingLISE("ParticleInGas", fileLISEgas);
 
     ROOT::Math::XYZPoint vertex {128, 128, 128}; // center of TPC
 
@@ -113,8 +113,11 @@ void checkPIDtelescope()
     auto hEsilAftervsBefore {Histos::EsilAftervsBefore.GetHistogram()};
     hEsilAftervsBefore->SetTitle("EsilAfter vs Ebefore");
     // PIDs
-    std::shared_ptr<TH2D> hPID = Histos::PIDLight.GetHistogram();
-    std::shared_ptr<TH2D> hPIDLength = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDfront = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDLengthfront = Histos::PIDLight.GetHistogram();
+    // Creare the side ones, although it does not hit in them, just to be able to use the same plotter macro
+    std::shared_ptr<TH2D> hPIDside = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDLengthside = Histos::PIDLight.GetHistogram();
     // Straggling
     auto hStragglingBegining {Histos::Straggling.GetHistogram()};
     hStragglingBegining->SetTitle("Straggling begining");
@@ -126,19 +129,19 @@ void checkPIDtelescope()
 
     if (particle == "1H" || particle == "2H" || particle == "3H" || particle == "3He" || particle == "4He")
     {
-        hPID = Histos::PIDLight.GetHistogram();
-        hPID->SetTitle(("PID for " + particle).c_str());
+        hPIDfront = Histos::PIDLight.GetHistogram();
+        hPIDfront->SetTitle(("PID for " + particle).c_str());
 
-        hPIDLength = Histos::PIDLightlength.GetHistogram();
-        hPIDLength->SetTitle(("PID length for " + particle).c_str());
+        hPIDLengthfront = Histos::PIDLightlength.GetHistogram();
+        hPIDLengthfront->SetTitle(("PID length for " + particle).c_str());
     }
     else
     {
-        hPID = Histos::PIDHeavy.GetHistogram();
-        hPID->SetTitle(("PID for " + particle).c_str());
+        hPIDfront = Histos::PIDHeavy.GetHistogram();
+        hPIDfront->SetTitle(("PID for " + particle).c_str());
 
-        hPIDLength = Histos::PIDHeavylength.GetHistogram();
-        hPIDLength->SetTitle(("PID length for " + particle).c_str());
+        hPIDLengthfront = Histos::PIDHeavylength.GetHistogram();
+        hPIDLengthfront->SetTitle(("PID length for " + particle).c_str());
     }
 
     int counter {0};
@@ -289,8 +292,8 @@ void checkPIDtelescope()
 
         if(energyAfterSecondSil == 0 && eLoss >0)
         {
-            hPID->Fill(eLoss, DeltaE);
-            hPIDLength->Fill(eLoss, DeltaE / distanceInside);
+            hPIDfront->Fill(eLoss, DeltaE);
+            hPIDLengthfront->Fill(eLoss, DeltaE / distanceInside);
             hEsilAftervsBefore->Fill(DeltaE, energyBeforeSilicons);
             // std::cout <<"Energy Before first silicon: " << energyBeforeSilicons << std::endl;
             // std::cout<< - energyBeforeSilicons + eLoss + DeltaE + (energyAfterFirstSil - energyAfterInterGas)  << std::endl;
@@ -320,9 +323,9 @@ void checkPIDtelescope()
     auto cPID {new TCanvas("cPID", "cPID", 800, 600)};
     cPID->DivideSquare(3);
     cPID->cd(1);
-    hPID->DrawClone("colz");
+    hPIDfront->DrawClone("colz");
     cPID->cd(2);
-    hPIDLength->DrawClone("colz");
+    hPIDLengthfront->DrawClone("colz");
     cPID->cd(3);
     hEsilAftervsBefore->DrawClone("colz");
 
@@ -341,8 +344,10 @@ void checkPIDtelescope()
     // Save histos
     TFile* outFile = new TFile(("../DebugOutputs/checkPID_outputTelescope" + particle  + ".root").c_str(), "RECREATE");
     hkinLi->Write("hkinLi");
-    hPID->Write("hPID");
-    hPIDLength->Write("hPIDLength");
+    hPIDfront->Write("hPIDfront");
+    hPIDLengthfront->Write("hPIDLengthfront");
+    hPIDside->Write("hPIDside");
+    hPIDLengthside->Write("hPIDLengthside");
     outFile->Close();
     delete outFile;
 }

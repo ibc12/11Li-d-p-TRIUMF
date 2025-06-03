@@ -121,24 +121,38 @@ void checkPIDgas()
     hTheta11LiOut->SetTitle("Theta 11Li out");
     auto hkinLi {Histos::KinHeavy.GetHistogram()};
     // PIDs
-    std::shared_ptr<TH2D> hPID = Histos::PIDLight.GetHistogram();
-    std::shared_ptr<TH2D> hPIDLength = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDfront = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDLengthfront = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDside = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDLengthside = Histos::PIDLight.GetHistogram();
 
     if (particle == "1H" || particle == "2H" || particle == "3H" || particle == "3He" || particle == "4He")
     {
-        hPID = Histos::PIDLight.GetHistogram();
-        hPID->SetTitle(("PID for " + particle).c_str());
+        hPIDfront = Histos::PIDLight.GetHistogram();
+        hPIDfront->SetTitle(("PID for " + particle).c_str());
 
-        hPIDLength = Histos::PIDLightlength.GetHistogram();
-        hPIDLength->SetTitle(("PID length for " + particle).c_str());
+        hPIDLengthfront = Histos::PIDLightlength.GetHistogram();
+        hPIDLengthfront->SetTitle(("PID length for " + particle).c_str());
+
+        hPIDside = Histos::PIDLight.GetHistogram();
+        hPIDside->SetTitle(("PID for " + particle).c_str());
+
+        hPIDLengthside = Histos::PIDLightlength.GetHistogram();
+        hPIDLengthside->SetTitle(("PID length for " + particle).c_str());
     }
     else
     {
-        hPID = Histos::PIDHeavy.GetHistogram();
-        hPID->SetTitle(("PID for " + particle).c_str());
+        hPIDfront = Histos::PIDHeavy.GetHistogram();
+        hPIDfront->SetTitle(("PID for " + particle).c_str());
 
-        hPIDLength = Histos::PIDHeavylength.GetHistogram();
-        hPIDLength->SetTitle(("PID length for " + particle).c_str());
+        hPIDLengthfront = Histos::PIDHeavylength.GetHistogram();
+        hPIDLengthfront->SetTitle(("PID length for " + particle).c_str());
+
+        hPIDside = Histos::PIDHeavy.GetHistogram();
+        hPIDside->SetTitle(("PID for " + particle).c_str());
+
+        hPIDLengthside = Histos::PIDHeavylength.GetHistogram();
+        hPIDLengthside->SetTitle(("PID length for " + particle).c_str());
     }
 
     int counter {0};
@@ -243,14 +257,15 @@ void checkPIDgas()
 
         hkinLi->Fill(thetaParticle * TMath::RadToDeg(), Tparticle);
 
-        if(eLoss > 0 && layerHit != "f2")
+        if(eLoss > 0 && layerHit != "f2" && (layerHit == "f0" || layerHit == "f1"))
         {
-            hPID->Fill(eLoss, DeltaE);
-            hPIDLength->Fill(eLoss, (DeltaE / distanceInside));
+            hPIDfront->Fill(eLoss, DeltaE);
+            hPIDLengthfront->Fill(eLoss, (DeltaE / distanceInside));
         }
-        if(layerHit == "l0" || layerHit == "r0")
+        if(eLoss > 0 && layerHit != "f2" && (layerHit == "l0" || layerHit == "r0"))
         {
-            
+            hPIDside->Fill(eLoss, DeltaE);
+            hPIDLengthside->Fill(eLoss, (DeltaE / distanceInside));
         }
             
     }
@@ -271,21 +286,30 @@ void checkPIDgas()
     c1->cd(2);
     hkinLi->DrawClone("colz");
 
-    auto cPID {new TCanvas("cPID", "cPID", 800, 600)};
-    cPID->DivideSquare(2);
-    cPID->cd(1);
-    hPID->DrawClone("colz");
-    cPID->cd(2);
-    hPIDLength->DrawClone("colz");
+    auto cPIDfront {new TCanvas("cPID front", "cPID front", 800, 600)};
+    cPIDfront->DivideSquare(2);
+    cPIDfront->cd(1);
+    hPIDfront->DrawClone("colz");
+    cPIDfront->cd(2);
+    hPIDLengthfront->DrawClone("colz");
+
+    auto cPIDside {new TCanvas("cPID side", "cPID side", 800, 600)};
+    cPIDside->DivideSquare(2);
+    cPIDside->cd(1);
+    hPIDside->DrawClone("colz");
+    cPIDside->cd(2);
+    hPIDLengthside->DrawClone("colz");
 
     
     // Save histos
-    // TFile* outFile = new TFile(("../DebugOutputs/checkPID_output" + particle  + ".root").c_str(), "RECREATE");
-    // hkinLi->Write("hkinLi");
-    // hPID->Write("hPID");
-    // hPIDLength->Write("hPIDLength");
-    // outFile->Close();
-    // delete outFile;
+    TFile* outFile = new TFile(("../DebugOutputs/checkPID_output" + particle  + ".root").c_str(), "RECREATE");
+    hkinLi->Write("hkinLi");
+    hPIDfront->Write("hPIDfront");
+    hPIDLengthfront->Write("hPIDLengthfront");
+    hPIDside->Write("hPIDside");
+    hPIDLengthside->Write("hPIDLengthside");
+    outFile->Close();
+    delete outFile;
 
 
 }
