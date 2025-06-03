@@ -17,23 +17,42 @@
 
 #include "../Histos.h"
 
-ROOT::Math::XYZPoint ComputeLimitPoint(ROOT::Math::XYZVector directionHeavy, ROOT::Math::XYZPoint RP)
+ROOT::Math::XYZPoint ComputeLimitPoint(ROOT::Math::XYZVector direction, ROOT::Math::XYZPoint RP, std::string layer)
 {
     // Compute the distance from RP to end of pad plane 0<X<256 0<Y<256 0<Z<256
 
     // Define the direction given by theta and phi
     ROOT::Math::XYZPointF firstPoint {RP};
-    ROOT::Math::XYZPointF secondPoint {RP + 100 * directionHeavy};
+    ROOT::Math::XYZPointF secondPoint {RP + 100 * direction};
 
     // Let's create a line and then compute the point where x=256 (low angle in heavy, so x will be always the limit)
     auto* line {new ActRoot::Line(firstPoint, secondPoint)};
 
-    auto pointLimit {line->MoveToX(256)};
-    ROOT::Math::XYZPoint pointLimitD {pointLimit};
-
-    double distance {(RP - pointLimit).R()}; // distance in mm
-    delete line;
-    return pointLimitD;
+    if(layer == "f0" || layer == "f1" || layer == "f2")
+    {
+        // For f0 and f2, we have to move to the limit of the pad plane
+        auto pointLimit {line->MoveToX(256)};
+        ROOT::Math::XYZPoint pointLimitD {pointLimit};
+        delete line;
+        return pointLimitD;
+    }
+    if(layer == "l0")
+    {
+        // For l0, we have to move to the limit of the pad plane
+        auto pointLimit {line->MoveToY(256)};
+        ROOT::Math::XYZPoint pointLimitD {pointLimit};
+        delete line;
+        return pointLimitD;
+    }
+    if(layer == "r0")
+    {
+        // For r0, we have to move to the limit of the pad plane
+        auto pointLimit {line->MoveToY(0)};
+        ROOT::Math::XYZPoint pointLimitD {pointLimit};
+        delete line;
+        return pointLimitD;
+    }
+    return ROOT::Math::XYZPoint(0, 0, 0); // Should not happen, but just in case
 }
 
 double ComputeDistancef0toPoint(ROOT::Math::XYZVector directionHeavy, ROOT::Math::XYZPoint SP)
@@ -80,16 +99,16 @@ void checkPIDgas()
     // SRIM
     std::string particle {"1H"};
     std::string path{"../SRIM files/"};
-    std::string gas{"900mb_CF4_90-10"};
+    std::string gas{"900mb_CF4_95-5"};
     std::string gasJuan{"952mb_mixture"};
     std::string silicon{"silicon"};
     auto* srim {new ActPhysics::SRIM};
-    srim->ReadTable("ParticleGas", path + particle + "_" + gas + ".txt");
+    srim->ReadTable("ParticleInGas", path + particle + "_" + gas + ".txt");
     srim->ReadTable("ParticleInSil", path + particle + "_" + silicon + ".txt");
     std::string fileLISE {"../LISE files/" + particle + "_silicon.txt"};
-    std::string fileLISEgas {"../LISE files/" + particle + "_gas.txt"};
+    std::string fileLISEgas {"../LISE files/" + particle + "_gas_95-5.txt"};
     srim->SetStragglingLISE("ParticleInSil", fileLISE);
-    //srim->SetStragglingLISE("ParticleInGas", fileLISEgas);
+    srim->SetStragglingLISE("ParticleInGas", fileLISEgas);
 
     ROOT::Math::XYZPoint vertex {128, 128, 128}; // center of TPC
 
@@ -124,7 +143,6 @@ void checkPIDgas()
 
     int counter {0};
 
-    // 11Li
     for(int i = 0; i < 1000000; i++)
     {
         double Tparticle {gRandom->Uniform(0, 80)}; // MeV
@@ -133,12 +151,11 @@ void checkPIDgas()
         
         double phiParticle {gRandom->Uniform(0, 2 * TMath::Pi())};
         double thetaParticle {gRandom->Uniform(0 * TMath::DegToRad(), 130 * TMath::DegToRad())};
-        // std::cout << "Theta: " << thetaLi11 * TMath::RadToDeg() << " Phi: " << phiLi11 * TMath::RadToDeg() << '\n';
         ROOT::Math::XYZVector directionParticle {TMath::Cos(thetaParticle), TMath::Sin(thetaParticle) * TMath::Sin(phiParticle),
                               TMath::Sin(thetaParticle) * TMath::Cos(phiParticle)};
 
 
-        // Check hit for the 11Li 
+        // Check hit for the particle
         int silIndex = -1;
         ROOT::Math::XYZPoint silPoint;
         std::string layerHit;
@@ -156,7 +173,7 @@ void checkPIDgas()
         if(silIndex == -1)
         {
             hTheta11LiOut->Fill(thetaParticle * TMath::RadToDeg());
-            if(counter < 50)
+            if(false)
             {
                 // Draw lines to check hits
                 double x0 = vertex.X();
@@ -182,14 +199,14 @@ void checkPIDgas()
 
         // Calculation of DeltaE-E
         // First, slow inside detector volume
-        auto limitPointGas {ComputeLimitPoint(directionParticle, vertex)};
+        auto limitPointGas {ComputeLimitPoint(directionParticle, vertex, layerHit)};
         double distanceInside {(vertex - limitPointGas).R()};
-        auto energyAfterInside {srim->SlowWithStraggling("ParticleGas", Tparticle, distanceInside)};
+        auto energyAfterInside {srim->SlowWithStraggling("ParticleInGas", Tparticle, distanceInside)};
         // auto DeltaE {TLi11 - energyAfterInside};
         // Second, slow in gas before silicon
         auto distanceInterGas {(limitPointGas - silPoint).R()};
-        auto energyAfterInterGas {srim->SlowWithStraggling("ParticleGas", energyAfterInside, distanceInterGas)};
-        auto DeltaE {Tparticle - energyAfterInside};
+        auto energyAfterInterGas {srim->SlowWithStraggling("ParticleInGas", energyAfterInside, distanceInterGas)};
+        auto DeltaE {Tparticle - energyAfterInterGas};
         //DeltaE = gRandom->Gaus(DeltaE, silRes->Eval(DeltaE)); // after silicon resolution
         // Finally, slow in silicon
         auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
@@ -226,13 +243,14 @@ void checkPIDgas()
 
         hkinLi->Fill(thetaParticle * TMath::RadToDeg(), Tparticle);
 
-        if(energyAfterSil == 0 && eLoss > 0)
-        {
-        }
-        if(layerHit == "l0" || layerHit == "r0")
+        if(eLoss > 0 && layerHit != "f2")
         {
             hPID->Fill(eLoss, DeltaE);
             hPIDLength->Fill(eLoss, (DeltaE / distanceInside));
+        }
+        if(layerHit == "l0" || layerHit == "r0")
+        {
+            
         }
             
     }
@@ -262,12 +280,12 @@ void checkPIDgas()
 
     
     // Save histos
-    TFile* outFile = new TFile(("../DebugOutputs/checkPID_output" + particle  + ".root").c_str(), "RECREATE");
-    hkinLi->Write("hkinLi");
-    hPID->Write("hPID");
-    hPIDLength->Write("hPIDLength");
-    outFile->Close();
-    delete outFile;
+    // TFile* outFile = new TFile(("../DebugOutputs/checkPID_output" + particle  + ".root").c_str(), "RECREATE");
+    // hkinLi->Write("hkinLi");
+    // hPID->Write("hPID");
+    // hPIDLength->Write("hPIDLength");
+    // outFile->Close();
+    // delete outFile;
 
 
 }
