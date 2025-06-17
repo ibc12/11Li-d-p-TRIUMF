@@ -110,12 +110,17 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     // Sigmas
     const double sigmaPercentBeam{0.001122};
     // Flags for resolution
+    bool IC{false}; // If true, we will slow the beam in the IC
     bool exResolution{true};
+
+    if(IC)
+        Tbeam += 0.2; // MeV, to account for the energy loss in the IC
 
     // SRIM
     auto *srim{new ActPhysics::SRIM};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_95-5"};
+    std::string ICgas{"100mb_CF4"};
     std::string silicon{"silicon"};
     srim->ReadTable("light", path + light + "_" + gas + ".txt");
     srim->ReadTable("beam", path + beam + "_" + gas + ".txt");
@@ -249,6 +254,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     hThetaLabStopInside->SetTitle("ThetaLab for particles that stop inside chanber");
     auto hThetaCMStopInside{Histos::ThetaCM.GetHistogram()};
     hThetaCMStopInside->SetTitle("ThetaCM for particles that stop inside chanber");
+    // Beam particle
+    auto hTbeam{Histos::T4Lab.GetHistogram()};
 
     // File to save data
     TString fileName{
@@ -340,6 +347,13 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 
         // Randomize beam energy, slow beam with straggling and check if reaction can happen
         auto TbeamRand = RandomizeBeamEnergy(Tbeam, sigmaPercentBeam * Tbeam);
+        // Apply slow in the IC
+        if(IC)
+        {
+            TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.0115);
+            TbeamRand = srim->SlowWithStraggling("beamIC", TbeamRand, 40);
+        }
+        hTbeam->Fill(TbeamRand);
         auto TbeamCorr{srim->SlowWithStraggling("beam", TbeamRand, vertex.X())};
         // Initialize variables for both methods, kinGen and kin
         double T3Lab {};
@@ -364,7 +378,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             // Sample angle with xs
             if(isThereXS)
             {
-                while(theta3CMBefore < 0){theta3CMBefore = xs->Sample(gRandom->Uniform());} // sample in deg
+                while(theta3CMBefore < 0){theta3CMBefore = xs->SampleCDF(gRandom->Uniform());} // sample in deg
             }
             else
             {
@@ -871,6 +885,11 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         effDetectionSilCM->Draw("apl");
         cEfficiency->cd(6);
         effDetectionL1CM->Draw("apl");
+
+        auto cBeam{new TCanvas{"cBeam", "Beam Spectra"}};
+        cBeam->DivideSquare(1);
+        cBeam->cd(1);
+        hTbeam->DrawClone();
     }
 }
 #endif
