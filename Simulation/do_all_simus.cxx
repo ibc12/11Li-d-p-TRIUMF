@@ -82,7 +82,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     std::cout << "TPC: " << tpc.X() << " " << tpc.Y() << " " << tpc.Z() << '\n';
     // Silicons
     auto *sils{new ActPhysics::SilSpecs};
-    sils->ReadFile("../configs/silicons_closer.conf");
+    sils->ReadFile("../configs/silicons.conf");
     sils->Print();
     const double sigmaSil{0.060 / 2.355}; // Si resolution
     auto silRes = std::make_unique<TF1>(
@@ -108,25 +108,27 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     // sils->DrawGeo();
 
     // Sigmas
-    const double sigmaPercentBeam{0.001122};
+    const double sigmaPercentBeam{0.008};
     // Flags for resolution
-    bool IC{false}; // If true, we will slow the beam in the IC
+    bool IC{true}; // If true, we will slow the beam in the IC
     bool exResolution{true};
-
-    if(IC)
-        Tbeam += 0.2; // MeV, to account for the energy loss in the IC
 
     // SRIM
     auto *srim{new ActPhysics::SRIM};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_95-5"};
     std::string ICgas{"100mb_CF4"};
+    std::string Mylar{"Mylar"};
     std::string silicon{"silicon"};
-    srim->ReadTable("light", path + light + "_" + gas + ".txt");
     srim->ReadTable("beam", path + beam + "_" + gas + ".txt");
+    srim->ReadTable("beamIC", path + beam + "_" + ICgas + ".txt");
+    srim->ReadTable("beamMylar", path + beam + "_" + Mylar + ".txt");
+    srim->ReadTable("light", path + light + "_" + gas + ".txt");
     srim->ReadTable("heavy", path + heavy + "_" + gas + ".txt");
     srim->ReadTable("lightInSil", path + light + "_" + silicon + ".txt");
     srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
+    // srim->SetStragglingLISE("beamIC", "../LISE files/" + beam + "_gasIC" + ".txt");
+    // srim->SetStragglingLISE("beamMylar", "../LISE files/" + beam + "_Mylar" + ".txt");
 
     // Kinematics
     auto* kinTheo {new ActPhysics::Kinematics {beam, target, light, heavy, Tbeam, Ex}};
@@ -136,6 +138,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     // cross section sampler
     bool isThereXS{false};
     auto* xs {new ActSim::CrossSection()};
+    double alpha {1.};
+    double NLi11 {3000 * 6 * 24 * 3600}; // 3000 particles per second, 6 days
+    double Nd {4.6688e19 * 25.6 * 0.8877}; // atom density, 25,6 cm long, 88.77% d2
     if(neutronPS == 0 && protonPS == 0 && target == "2H" && light == "1H")
     {
         isThereXS = true;
@@ -144,21 +149,26 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angs12nospin.dat", Tbeam / 11)};
             xs->ReadFile(data_to_read.Data());
             std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+            alpha = (NLi11 * Nd * xs->GetTotalXScm2())/niter;
+            std::cout << "Alpha: " << alpha << std::endl;
         }
         else if(Ex == 0.130)
         {
             TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp12nospin.dat", Tbeam / 11)};
             xs->ReadFile(data_to_read.Data());
             std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+            alpha = (NLi11 * Nd * xs->GetTotalXScm2())/niter;
+            std::cout << "Alpha: " << alpha << std::endl;
         }
         else if(Ex == 0.435)
         {
             TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp32nospin.dat", Tbeam / 11)};
             xs->ReadFile(data_to_read.Data());
             std::cout<<xs->GetTotalXSmbarn()<<std::endl;
+            alpha = (NLi11 * Nd * xs->GetTotalXScm2())/niter;
+            std::cout << "Alpha: " << alpha << std::endl;
         }
     }
-    
 
     // Declare histograms
     auto hKin{Histos::Kin.GetHistogram()};
@@ -255,7 +265,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     auto hThetaCMStopInside{Histos::ThetaCM.GetHistogram()};
     hThetaCMStopInside->SetTitle("ThetaCM for particles that stop inside chanber");
     // Beam particle
-    auto hTbeam{Histos::T4Lab.GetHistogram()};
+    auto hTbeam{Histos::T1Lab.GetHistogram()};
 
     // File to save data
     TString fileName{
@@ -304,6 +314,12 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     {
         Ex = (1.26642 + 0.36928) / 2;
     }
+    // Modify Ebeam if it crosses the IC
+    if(IC)
+    {
+        Tbeam += 1.4; // MeV, to account for the energy loss in the IC
+    }
+    
 
     // RUN!
     // print fancy info (dont pay attention to this)
@@ -350,8 +366,14 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         // Apply slow in the IC
         if(IC)
         {
-            TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.0115);
-            TbeamRand = srim->SlowWithStraggling("beamIC", TbeamRand, 40);
+            TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.005);
+            TbeamRand = srim->SlowWithStraggling("beamIC", TbeamRand, 20);
+            TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.0015);
+            TbeamRand = srim->SlowWithStraggling("beamIC", TbeamRand, 20);
+            TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.005);
+
+            // TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.0115);
+            // TbeamRand = srim->SlowWithStraggling("beamIC", TbeamRand, 40);
         }
         hTbeam->Fill(TbeamRand);
         auto TbeamCorr{srim->SlowWithStraggling("beam", TbeamRand, vertex.X())};
@@ -640,7 +662,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 
             // Fill
             hKinRec->Fill(theta3Lab * TMath::RadToDeg(), T3Rec);     // after reconstruction
-            hEx->Fill(ExRec, weight);
+            hEx->Fill(ExRec, weight * alpha);
             hRP->Fill(vertex.X(), vertex.Y());
             hRP_ZY->Fill(vertex.Y(), vertex.Z());
             if (layer0 == "f0")
