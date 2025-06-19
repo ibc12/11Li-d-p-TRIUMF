@@ -15,13 +15,14 @@
 #include "TVirtualPad.h"
 #include "TF1.h"
 #include "TVirtualFitter.h"
+#include "TMultiGraph.h"
 
 #include "ActCrossSection.h"
 
 
 #include <string>
 #include <vector>
-void merger()
+void merger_intervals()
 {
     // ROOT::Math::MinimizerOptions::SetDefaultMaxFunctionCalls(10000);
 
@@ -122,6 +123,60 @@ void merger()
         delete xs;
     }
 
+    // Angular binning (0° to 180° in 10° bins)
+    int nAngularBins = 18;
+    std::vector<double> binCenters;
+    for (int i = 0; i < nAngularBins; ++i)
+        binCenters.push_back(5.0 + 10.0 * i);  // bin centers: 5, 15, ..., 175
+
+    std::vector<std::vector<double>> countsPerState(Exs.size(), std::vector<double>(nAngularBins, 0.0));
+    std::vector<double> countsTotal(nAngularBins, 0.0);
+
+    // Reset contador for indexing
+    contador = 0;
+    for (auto& df : dfs)
+    {
+        double Ex = Exs[contador];
+        auto* xs {new ActSim::CrossSection()};
+        if(Ex == 0)
+        {
+            TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angs12nospin.dat", T1)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout << xs->GetTotalXSmbarn() << std::endl;
+        }
+        else if(Ex == 0.130)
+        {
+            TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp12nospin.dat", T1)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout << xs->GetTotalXSmbarn() << std::endl;
+        }
+        else if(Ex == 0.435)
+        {
+            TString data_to_read {TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angp32nospin.dat", T1)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout << xs->GetTotalXSmbarn() << std::endl;
+        }
+
+        double totalXS {xs->GetTotalXScm2()};
+        double scaling {(Nt * Np * totalXS) / Nit};
+
+        // Angular bin loop
+        for (int i = 0; i < nAngularBins; ++i)
+        {
+            double angMin = i * 10.0;
+            double angMax = (i + 1) * 10.0;
+
+            auto dfBin = df.Filter(TString::Format("theta3CM >= %f && theta3CM < %f", angMin, angMax).Data());
+            auto n = *(dfBin.Count());
+            double scaledCount = n * scaling;
+            countsPerState[contador][i] = scaledCount;
+            countsTotal[i] += scaledCount;
+        }
+
+        delete xs;
+        contador++;
+    }
+
     auto* f {new TF1{"f", "[0] * TMath::Voigt(x - [1], [2], [3]) + [4] * TMath::Voigt(x - [5], [6], [7])  + [8] * TMath::Voigt(x - [9], [10], [11]) ", -2, 2}};
     Double_t params[12] = {150, 0, 0.1018, 0.1, 250, 0.13, 0.08895, 0.02, 140, 0.4, 0.09646, 0.08};
     f->SetParameters(params);
@@ -192,4 +247,38 @@ void merger()
         hs1[i]->Draw("hist same");
     }
     leg1->Draw();
+
+    // Plot counts in intervals
+    auto* c1 = new TCanvas("c1", "Angular distribution", 800, 600);
+    auto* mg = new TMultiGraph();
+    auto* leg2 = new TLegend(0.65, 0.65, 0.88, 0.88);
+    leg2->SetHeader("E_{x} [MeV]");
+    leg2->SetBorderSize(0);
+    leg2->SetFillStyle(0);
+
+    std::vector<int> markers {20, 21, 22}; // Diferentes estilos de marcador
+
+    for (size_t i = 0; i < Exs.size(); ++i)
+    {
+        TGraph* gr = new TGraph(nAngularBins, binCenters.data(), countsPerState[i].data());
+        gr->SetMarkerColor(colors[i]);
+        gr->SetLineColor(colors[i]);
+        gr->SetMarkerStyle(markers[i]);
+        gr->SetMarkerSize(1.2);
+        mg->Add(gr);
+        leg2->AddEntry(gr, labels[i].c_str(), "p");
+    }
+
+    // Gráfico total
+    TGraph* grTotal = new TGraph(nAngularBins, binCenters.data(), countsTotal.data());
+    grTotal->SetMarkerColor(kBlack);
+    grTotal->SetLineColor(kBlack);
+    grTotal->SetMarkerStyle(33);
+    grTotal->SetMarkerSize(1.5);
+    mg->Add(grTotal);
+    leg2->AddEntry(grTotal, "Total", "p");
+
+    mg->Draw("APL");
+    mg->SetTitle("Angular Yield (theta3CM);#theta_{CM} [deg];Expected counts");
+    leg2->Draw();
 }

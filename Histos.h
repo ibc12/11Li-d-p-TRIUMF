@@ -15,6 +15,9 @@ const ROOT::RDF::TH1DModel T4Lab {"hT4Lab", "Kinetic Energy of heavy;T4_{Lab} [M
 // T3
 const ROOT::RDF::TH1DModel T3Lab {"hT3Lab", "Kinetic Energy of light;T3_{Lab} [MeV];Counts", 100, 0, 20};
 
+// T1
+const ROOT::RDF::TH1DModel T1Lab {"hT1Lab", "Kinetic Energy of beam;T1_{Lab} [MeV];Counts", 100, 80, 85};
+
 // Range In Gas 
 const ROOT::RDF::TH1DModel RangeInGas {"hRangeInGas", "Range;Range [mm];Counts", 300, 0, 2000};
 

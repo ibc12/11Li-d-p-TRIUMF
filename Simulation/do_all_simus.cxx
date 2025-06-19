@@ -82,7 +82,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     std::cout << "TPC: " << tpc.X() << " " << tpc.Y() << " " << tpc.Z() << '\n';
     // Silicons
     auto *sils{new ActPhysics::SilSpecs};
-    sils->ReadFile("../configs/silicons.conf");
+    sils->ReadFile("../configs/silicons_closer.conf");
     sils->Print();
     const double sigmaSil{0.060 / 2.355}; // Si resolution
     auto silRes = std::make_unique<TF1>(
