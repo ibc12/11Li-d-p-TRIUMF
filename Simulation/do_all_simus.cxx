@@ -168,6 +168,22 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             alpha = (NLi11 * Nd * xs->GetTotalXScm2()) / niter;
             std::cout << "Alpha: " << alpha << std::endl;
         }
+        else if (Ex == 2.)
+        {
+            TString data_to_read{TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angd52nospin.dat", Tbeam / 11)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout << xs->GetTotalXSmbarn() << std::endl;
+            alpha = (NLi11 * Nd * xs->GetTotalXScm2()) / niter;
+            std::cout << "Alpha: " << alpha << std::endl;
+        }
+        else if (Ex == 5.)
+        {
+            TString data_to_read{TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angd52nospin.dat", Tbeam / 11)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout << xs->GetTotalXSmbarn() << std::endl;
+            alpha = (NLi11 * Nd * xs->GetTotalXScm2()) / niter;
+            std::cout << "Alpha: " << alpha << std::endl;
+        }
     }
 
     // Declare histograms
@@ -355,6 +371,14 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 randEx = gRandom->BreitWigner(Ex, 0.015);
             }
             else if (Ex == 0.435)
+            {
+                randEx = gRandom->BreitWigner(Ex, 0.08);
+            }
+            else if (Ex == 2)
+            {
+                randEx = gRandom->BreitWigner(Ex, 0.08);
+            }
+            else if (Ex == 5)
             {
                 randEx = gRandom->BreitWigner(Ex, 0.08);
             }
