@@ -37,10 +37,12 @@ void merger_intervals()
     oss << "../Outputs/" << std::fixed << std::setprecision(1) << T1 << "MeV/";
     std::string outputPath = oss.str();
 
+    std::string silConfig {"silicons_reverse_closer"};
+
     std::vector<std::string> files {
-        outputPath + "2H_1H_TRIUMF_Eex_0.000_nPS_0_pPS_0.root",
-        outputPath + "2H_1H_TRIUMF_Eex_0.130_nPS_0_pPS_0.root",
-        outputPath + "2H_1H_TRIUMF_Eex_0.435_nPS_0_pPS_0.root"
+        outputPath + "2H_1H_TRIUMF_Eex_0.000_nPS_0_pPS_0_" + silConfig + ".root",
+        outputPath + "2H_1H_TRIUMF_Eex_0.130_nPS_0_pPS_0_" + silConfig + ".root",
+        outputPath + "2H_1H_TRIUMF_Eex_0.435_nPS_0_pPS_0_" + silConfig + ".root"
     };
 
     // Read dfs
@@ -103,8 +105,8 @@ void merger_intervals()
         double totalXS {xs->GetTotalXScm2()};
         double scaling {(Nt * Np * totalXS) / Nit};
 
-        // FILTRO por theta3CM en el rango deseado
-        auto dfFiltered = df.Filter("theta3CM >= 0 && theta3CM <= 180", "Angular cut on theta3CM");
+        // FILTRO por theta3Lab en el rango deseado
+        auto dfFiltered = df.Filter("theta3CM >= 0 && theta3CM <= 180", "Angular cut on theta3Lab");
 
         auto h1 {dfFiltered.Histo1D(
             {"h1", "Ex in for loop", hEx->GetNbinsX(), hEx->GetXaxis()->GetXmin(), hEx->GetXaxis()->GetXmax()}, "Eex")};
@@ -114,7 +116,7 @@ void merger_intervals()
 
         auto h2 {dfFiltered.Histo2D(
             {"h2", "Kinematics in for loop", hKin->GetNbinsX(), hKin->GetXaxis()->GetXmin(), hKin->GetXaxis()->GetXmax(), 
-                hKin->GetNbinsY(), hKin->GetYaxis()->GetXmin(), hKin->GetYaxis()->GetXmax()}, "theta3Lab", "EVertex")};
+                hKin->GetNbinsY(), hKin->GetYaxis()->GetXmin(), hKin->GetYaxis()->GetXmax()}, "theta3CM", "EVertex")};
         h2->Scale(scaling);
         hKin->Add(h2.GetPtr());
         hs2.push_back((TH2D*)h2->Clone());
@@ -279,6 +281,22 @@ void merger_intervals()
     leg2->AddEntry(grTotal, "Total", "p");
 
     mg->Draw("APL");
-    mg->SetTitle("Angular Yield (theta3CM);#theta_{CM} [deg];Expected counts");
+
+    // Set the title
+    TString configTStr = silConfig; // convierte std::string a TString
+    TString configLabel;
+    if(configTStr.Contains("reverse"))
+        configLabel = "Confg: USC";
+    else
+        configLabel = "Confg: VAMOS";
+
+    if(configTStr.Contains("closer"))
+        configLabel += " close";
+
+    // Construye el título completo
+    TString fullTitle = Form("Angular Yield (theta3CM) [%s];#theta_{CM} [deg];u.a.", configLabel.Data());
+
+    mg->SetTitle(fullTitle);
+    mg->SetTitle(fullTitle);
     leg2->Draw();
 }

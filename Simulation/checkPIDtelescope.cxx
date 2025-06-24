@@ -87,7 +87,7 @@ void checkPIDtelescope()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"9Li"};
+    std::string particle {"7Li"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_90-10"};
     std::string silicon{"silicon"};

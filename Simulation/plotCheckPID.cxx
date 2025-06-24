@@ -6,11 +6,13 @@
 #include <vector>
 #include <string>
 
+#include "../Histos.h"
+
 void plotCheckPID()
 {
     bool isTelescope {true}; // Cambiar a true si es telescopio
 
-    std::vector<std::string> particles{"9Li", "11Li"};
+    std::vector<std::string> particles{"7Li", "8Li", "9Li", "11Li"};
     // std::vector<std::string> particles{"1H", "2H", "3H"};
     std::vector<TFile*>       inFiles;
     std::vector<TH2D*>        hkin;
@@ -87,11 +89,11 @@ void plotCheckPID()
 
     if (isTelescope)
     {
-        // Dibujar cada hPIDfront (Telescopio) en su pad
+        // Dibujar cada hPIDside (Telescopio) en su pad
         for (size_t i = 0; i < particles.size(); ++i)
         {
             cPIDfront->cd(i + 1);
-            if (hPIDfront[i])
+            if (hPIDside[i])
             {
                 hPIDfront[i]->DrawClone("colz");
                 hPIDfront[i]->GetYaxis()->SetTitle("#DeltaE_{sil1}");
@@ -100,31 +102,28 @@ void plotCheckPID()
             }
         }
 
-        // Plot combinado (todos los hPIDfront juntos)
+        // Plot combinado (todos los hPIDside juntos con suma de cuentas)
         cPIDfront->cd(nParticles + 1);
-        bool firstDrawnF = false;
+        auto hSum {Histos::PIDHeavy.GetHistogram()};
+
         for (size_t i = 0; i < particles.size(); ++i)
         {
             if (!hPIDfront[i]) continue;
-            auto clone = (TH2D*)hPIDfront[i]->Clone();
-            clone->SetTitle("PID Front: All Particles");
-            clone->GetYaxis()->SetTitle("#DeltaE_{sil1}");
-            clone->GetXaxis()->SetTitle("#DeltaE_{sil2}");
-            clone->SetLineColor(i + 1);
-            clone->SetMarkerColor(i + 1);
-            clone->SetLineWidth(2);
-            clone->SetStats(0);
 
-            if (!firstDrawnF)
+            if (!hSum)
             {
-                clone->DrawClone("colz");
-                firstDrawnF = true;
+                
             }
             else
             {
-                clone->DrawClone("colz same");
+                hSum->Add(hPIDfront[i]);  // suma bin a bin
             }
         }
+        hSum->GetYaxis()->SetTitle("#DeltaE_{sil1}");
+        hSum->GetXaxis()->SetTitle("#DeltaE_{sil2}");
+        hSum->SetTitle("PID for all Li isotopes");
+        if (hSum)
+            hSum->DrawClone("colz");
     }
     else
     {
@@ -170,6 +169,7 @@ void plotCheckPID()
 
     if (isTelescope)
     {
+        
         // Dibujar cada hPIDside (Telescopio) en su pad
         for (size_t i = 0; i < particles.size(); ++i)
         {
