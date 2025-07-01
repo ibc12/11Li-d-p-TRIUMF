@@ -1,3 +1,5 @@
+#include "ActSilSpecs.h"
+
 #include "TFile.h"
 #include "TTree.h"
 #include "TCanvas.h"
@@ -6,12 +8,50 @@
 #include "TMath.h"
 #include "TPaveText.h"
 
+#include "Math/Point3D.h"
+
 #include <string>
 #include <vector>
+#include <cmath>
 #include <iostream>
 
-void correlationThetaHeavyAndLight_allChannels()
+bool BothHitf0(double theta3Lab, double phi3, double theta4Lab, double phi4, ROOT::Math::XYZPoint vertex, 
+               ActPhysics::SilSpecs *sils)
 {
+    ROOT::Math::XYZVector direction3{TMath::Cos(theta3Lab * TMath::DegToRad()), TMath::Sin(theta3Lab * TMath::DegToRad()) * TMath::Sin(phi3),
+                            TMath::Sin(theta3Lab * TMath::DegToRad()) * TMath::Cos(phi3)};
+    ROOT::Math::XYZVector direction4{TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4),
+                            TMath::Sin(theta4Lab) * TMath::Cos(phi4)};       
+
+
+    int silIndex3{};
+    ROOT::Math::XYZPoint silPoint3{};
+    int silIndex4{};
+    ROOT::Math::XYZPoint silPoint4{};                 
+    // Check if both particles hit the f0 layer
+    // std::tie(silIndex3, silPoint3) = sils->FindSPInLayer("f0", vertex, direction3);
+    std::tie(silIndex4, silPoint4) = sils->FindSPInLayer("f0", vertex, direction4);
+    return (silIndex3 != -1 && silIndex4 != -1);
+}
+
+void correlationT3_T4_allChannels()
+{
+    // Silicons
+    auto *sils{new ActPhysics::SilSpecs};
+    std::string silConfig("silicons_reverse");
+    sils->ReadFile("../configs/" + silConfig + ".conf");
+    for (auto &[name, layer] : sils->GetLayers())
+    {
+        if (name == "f0" || name == "f1")
+            layer.MoveZTo(75, {3});
+        if (name == "f2" || name == "f3")
+            layer.MoveZTo(125, {0});
+        if (name == "l0" || name == "r0")
+            layer.MoveZTo(75, {3});
+    }
+    sils->DrawGeo();
+
+
     std::string path = "../Outputs/7.5MeV/";
 
     std::vector<std::pair<std::string, std::string>> files = {
@@ -41,7 +81,7 @@ void correlationThetaHeavyAndLight_allChannels()
             continue;
         }
 
-        TTree* t3 = (TTree*)f->Get("SimulationTTree");
+        TTree* t3 = (TTree*)f->Get("SimulationTTreeNoCuts");
         TTree* t4 = (TTree*)f->Get("SimulationTTreeHeavy");
         if (!t3 || !t4) {
             std::cerr << "Missing trees in: " << fullPath << std::endl;
@@ -49,19 +89,28 @@ void correlationThetaHeavyAndLight_allChannels()
             continue;
         }
 
-        double theta3, theta4;
+        double theta3, theta4, phi3, phi4, T3, T4;
+        ROOT::Math::XYZPoint vertex;
+        t3->SetBranchAddress("T3Lab", &T3);
         t3->SetBranchAddress("theta3Lab", &theta3);
-        t4->SetBranchAddress("theta4Lab", &theta4);
+        t3->SetBranchAddress("phi3CM", &phi3);
+        t3->SetBranchAddress("T4Lab", &T4);
+        t3->SetBranchAddress("theta4Lab", &theta4);
+        t3->SetBranchAddress("phi4CM", &phi4);
+        t3->SetBranchAddress("RP", &vertex);
 
-        int nEntries = std::min(t3->GetEntries(), t4->GetEntries());
+        int nEntries = t3->GetEntries();
+        // int nEntries = std::min(t3->GetEntries(), t4->GetEntries());
         auto hist = new TH2D(("h_" + name).c_str(),
-                             " ;#theta_{3}^{Lab} (deg);#theta_{4}^{Lab} (deg)",
-                             180, 0, 180, 40, 0, 20);
+                             " ;T_{3}^{Lab} (MeV);T_{4}^{Lab} (MeV)",
+                             100, 0, 80, 100, 0, 80);
 
-        for (int j = 0; j < nEntries; ++j) {
+        for (int j = 0; j < nEntries; ++j) 
+        {
             t3->GetEntry(j);
             t4->GetEntry(j);
-            hist->Fill(theta3, theta4 * TMath::RadToDeg());
+            if(BothHitf0(theta3, phi3, theta4, phi4, vertex, sils))
+                hist->Fill(T3, T4);
         }
 
         hist->GetXaxis()->SetTitleSize(0.04);
@@ -87,5 +136,5 @@ void correlationThetaHeavyAndLight_allChannels()
         
     }
 
-    // c->SaveAs("../Figures/AllChannels_theta3_vs_theta4.png");
+    // c->SaveAs("../Figures/AllChannels_T3_vs_T4.png");
 }

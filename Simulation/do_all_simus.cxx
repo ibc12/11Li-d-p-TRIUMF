@@ -320,10 +320,14 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     outTreeNoCut->Branch("T3Lab", &T3Lab_treeNoCut);
     double theta4Lab_treeNoCut{};
     outTreeNoCut->Branch("theta4Lab", &theta4Lab_treeNoCut);
+    double phi4CM_treeNoCut{};
+    outTreeNoCut->Branch("phi4CM", &phi4CM_treeNoCut);
     double T4Lab_treeNoCut{};
     outTreeNoCut->Branch("T4Lab", &T4Lab_treeNoCut);
     double weight_treeNoCut{};
     outTreeNoCut->Branch("weight", &weight_treeNoCut);
+    ROOT::Math::XYZPoint RPNoCuts_tree{};
+    outTreeNoCut->Branch("RP", &RPNoCuts_tree);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
     if (neutronPS == 2)
@@ -550,6 +554,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         theta4Lab_treeNoCut = theta4Lab;
         T4Lab_treeNoCut = T4Lab;
         weight_treeNoCut = weight;
+        phi4CM_treeNoCut = phi4Lab;
+        RPNoCuts_tree = vertex;
         outTreeNoCut->Fill();
         // "f0": key name of layer to check for SP
         // silIndex == -1 if NO SP
