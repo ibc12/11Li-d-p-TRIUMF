@@ -9,6 +9,7 @@
 #include "ActParticle.h"
 #include "ActDecayGenerator.h"
 #include "ActKinematicGenerator.h"
+#include "ActSilData.h"
 
 #include "TCanvas.h"
 #include "TEfficiency.h"
@@ -68,6 +69,149 @@ double RandomizeBeamEnergy(double Tini, double sigma)
     return gRandom->Gaus(Tini, sigma);
 }
 
+void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double phi3Lab,
+                           double T3Lab, double theta4Lab, double phi4Lab, double T4Lab, XYZPoint vertex, std::vector<std::string> silLayers, ActPhysics::SilSpecs *sils, TF1 &silRes, ActPhysics::SRIM *srim)
+{
+    // Light particle
+    XYZVector dirLight{TMath::Cos(theta3Lab), TMath::Sin(theta3Lab) * TMath::Sin(phi3Lab),
+                       TMath::Sin(theta3Lab) * TMath::Cos(phi3Lab)};
+    int silIndex0 = -1;
+    ROOT::Math::XYZPoint silPoint0;
+    std::string layer0;
+    for (auto layer : silLayers)
+    {
+        std::tie(silIndex0, silPoint0) = sils->FindSPInLayer(layer, vertex, dirLight);
+        if (silIndex0 != -1)
+        {
+            layer0 = layer;
+            break;
+        }
+    }
+    if (silIndex0 != -1)
+    {
+        // Slow down light in gas
+        auto T3AtSil{srim->SlowWithStraggling("light", T3Lab, (silPoint0 - vertex).R())};
+        // Check if stopped
+        ApplyNaN(T3AtSil);
+        // Slow down in silicon
+        if (!std::isnan(T3AtSil))
+        {
+            auto normal{sils->GetLayer(layer0).GetNormal()};
+            auto angleWithNormal{TMath::ACos(dirLight.Unit().Dot(normal.Unit()))};
+            auto T3AfterSil0{srim->SlowWithStraggling("lightInSil", T3AtSil, sils->GetLayer(layer0).GetUnit().GetThickness(),
+                                                    angleWithNormal)};
+            auto eLoss0preSilRes{T3AtSil - T3AfterSil0};
+            ApplyNaN(eLoss0preSilRes, sils->GetLayer(layer0).GetThresholds().at(silIndex0));
+            if (!std::isnan(eLoss0preSilRes))
+            {
+                auto eLoss0{gRandom->Gaus(eLoss0preSilRes, silRes.Eval(eLoss0preSilRes))}; // after silicon resolution
+                ApplyNaN(eLoss0, sils->GetLayer(layer0).GetThresholds().at(silIndex0));
+                if (std::isnan(eLoss0))
+                {
+                    eLoss0 = 0;
+                }
+                // Fill map
+                silData->fSiE[layer0].push_back(eLoss0);
+                silData->fSiN[layer0].push_back(silIndex0);
+                // Apply 2nd layer of silicons
+                double T3AfterInterGas{};
+                int silIndex1{};
+                ROOT::Math::XYZPoint silPoint1{};
+                double eLoss1{};
+                double T3AfterSil1{-1};
+                if (T3AfterSil0 > 0. && layer0 == "f0")
+                {
+                    std::string layer1;
+                    for (auto layer : silLayers)
+                    {
+                        std::tie(silIndex1, silPoint1) = sils->FindSPInLayer(layer, vertex, dirLight);
+                        if (silIndex1 != -1)
+                        {
+                            layer1 = layer;
+                            break;
+                        }
+                    }
+                    if (silIndex1 == -1)
+                    {
+                    } // If a silicon is not reached, don't continue with punchthough calculation
+                    else
+                    {
+                        T3AfterInterGas = {srim->SlowWithStraggling("light", T3AfterSil0, (silPoint0 - silPoint1).R())};
+                        if (T3AfterInterGas == 0)
+                        {
+                        } // If slow in gas don't continue with calculation
+                        else
+                        {
+                            T3AfterSil1 = srim->SlowWithStraggling("lightInSil", T3AfterInterGas, sils->GetLayer(layer1).GetUnit().GetThickness(),
+                                                                angleWithNormal);
+                            auto eLoss1preSilRes{T3AfterInterGas - T3AfterSil1};
+                            ApplyNaN(eLoss1preSilRes, sils->GetLayer(layer1).GetThresholds().at(silIndex1));
+                            if (!std::isnan(eLoss1preSilRes))
+                            {
+                            // Apply resolution
+                            eLoss1 = gRandom->Gaus(eLoss1preSilRes, silRes.Eval(eLoss1preSilRes)); // after silicon resolution
+                            ApplyNaN(eLoss1, sils->GetLayer(layer1).GetThresholds().at(silIndex1));
+                            if (std::isnan(eLoss1))
+                                eLoss1 = 0;
+                            }
+                        }
+                        // Fill map
+                        silData->fSiE[layer1].push_back(eLoss1);
+                        silData->fSiN[layer1].push_back(silIndex1);
+                    }
+                }
+            }
+            
+        }
+        
+    }
+
+    // Heavy particle
+    XYZVector dirHeavy{TMath::Cos(theta4Lab), TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab),
+                       TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab)};
+    int silIndex2 = -1;
+    ROOT::Math::XYZPoint silPoint2;
+    std::string layer2;
+    for (auto layer : silLayers)
+    {
+        std::tie(silIndex2, silPoint2) = sils->FindSPInLayer(layer, vertex, dirHeavy);
+        if (silIndex2 != -1)
+        {
+            layer2 = layer;
+            break;
+        }
+    }
+    if (silIndex2 != -1)
+    {
+        // Slow down heavy in gas
+        auto T4AtSil{srim->SlowWithStraggling("heavy", T4Lab, (silPoint2 - vertex).R())};
+        // Check if stopped
+        ApplyNaN(T4AtSil);
+        if(!std::isnan(T4AtSil))
+        {
+            // Slow down in silicon
+            auto normal{sils->GetLayer(layer2).GetNormal()};
+            auto angleWithNormal{TMath::ACos(dirHeavy.Unit().Dot(normal.Unit()))};
+            auto T4AfterSil0{srim->SlowWithStraggling("heavyInSil", T4AtSil, sils->GetLayer(layer2).GetUnit().GetThickness(),
+                                                    angleWithNormal)};
+            auto eLoss0preSilRes{T4AtSil - T4AfterSil0};
+            ApplyNaN(eLoss0preSilRes, sils->GetLayer(layer2).GetThresholds().at(silIndex2));
+            if(!std::isnan(eLoss0preSilRes))
+            {
+                auto eLoss0{gRandom->Gaus(eLoss0preSilRes, silRes.Eval(eLoss0preSilRes))}; // after silicon resolution
+                ApplyNaN(eLoss0, sils->GetLayer(layer2).GetThresholds().at(silIndex2));
+                if(std::isnan(eLoss0))
+                {
+                    eLoss0 = 0;
+                }
+                // Fill map
+                silData->fSiE[layer2].push_back(eLoss0);
+                silData->fSiN[layer2].push_back(silIndex2);
+            }
+        }
+    }
+}
+
 void do_all_simus(const std::string &beam, const std::string &target, const std::string &light, const std::string &heavy, int neutronPS,
                   int protonPS, double Tbeam, double Ex, bool inspect)
 {
@@ -89,6 +233,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         "silRes", [=](double *x, double *p)
         { return sigmaSil * TMath::Sqrt(x[0] / 5.5); }, 0.0, 100.0, 1);
     std::vector<std::string> silLayers{"f0", "l0", "r0"};
+    std::vector<std::string> AllsilLayers{"f0", "f1", "f2", "f3", "l0", "r0"};
     // We have to centre the silicons with the beam input
     // In real life beam window is not at Z / 2
     for (auto &[name, layer] : sils->GetLayers())
@@ -328,6 +473,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     outTreeNoCut->Branch("weight", &weight_treeNoCut);
     ROOT::Math::XYZPoint RPNoCuts_tree{};
     outTreeNoCut->Branch("RP", &RPNoCuts_tree);
+    ActRoot::SilData *silData_tree{new ActRoot::SilData()};
+    outTreeNoCut->Branch("silData", &silData_tree);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
     if (neutronPS == 2)
@@ -416,6 +563,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         double phi3CM{};
         double theta3CMBefore{-1};
         double weight{1.};
+        auto *silData{new ActRoot::SilData()}; 
         if (isThereXS)
         {
             auto beamThreshold{ActPhysics::Kinematics(beam, target, light, heavy, -1, randEx).GetT1Thresh()};
@@ -546,6 +694,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 break;
             }
         }
+        // Fill the SilData for silicon hit on all cases
+        FillSiliconHitsNoCuts(silData, theta3Lab, phi3Lab, T3Lab, theta4Lab, phi4Lab, T4Lab, vertex, AllsilLayers, sils, *silRes, srim);
         // Fill tree with no cuts
         theta3CM_treeNoCut = theta3CMBefore;
         theta3Lab_treeNoCut = theta3Lab * TMath::RadToDeg();
@@ -556,6 +706,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         weight_treeNoCut = weight;
         phi4CM_treeNoCut = phi4Lab;
         RPNoCuts_tree = vertex;
+        silData_tree = silData;
         outTreeNoCut->Fill();
         // "f0": key name of layer to check for SP
         // silIndex == -1 if NO SP
@@ -737,6 +888,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             weight_tree = weight;
             outTreeHeavy->Fill();
         }
+        delete silData; // delete silData to avoid memory leaks
     }
 
     outFile->Write();
