@@ -36,19 +36,21 @@ void testSils()
     std::cout << "TPC: " << tpc.X() << " " << tpc.Y() << " " << tpc.Z() << '\n';
     // Silicons
     auto* sils {new ActPhysics::SilSpecs};
-    sils->ReadFile("../configs/silicons.conf");
+    sils->ReadFile("../configs/silicons_reverse.conf");
     sils->Print();
     const double sigmaSil {0.060 / 2.355}; // Si resolution
     auto silRes = std::make_unique<TF1>(
         "silRes", [=](double* x, double* p) { return sigmaSil * TMath::Sqrt(x[0] / 5.5); }, 0.0, 100.0, 1);
-    std::vector<std::string> silLayers {"f0", "l0", "r0"};
+    std::vector<std::string> silLayers {"f0", "f1", "f2", "f3", "l0", "r0"};
     // We have to centre the silicons with the beam input
     // In real life beam window is not at Z / 2
-    for(auto& [name, layer] : sils->GetLayers())
-    {   
-        if(name == "f0" || name == "f1")
-            layer.MoveZTo(75, {4, 3});
-        if(name == "l0" || name == "r0")
+    for (auto &[name, layer] : sils->GetLayers())
+    {
+        if (name == "f0" || name == "f1")
+            layer.MoveZTo(75, {3});
+        if (name == "f2" || name == "f3")
+            layer.MoveZTo(125, {0});
+        if (name == "l0" || name == "r0")
             layer.MoveZTo(75, {3});
     }
 
