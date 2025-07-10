@@ -53,13 +53,12 @@ void silData_ActRootChanges()
     auto modularDataOut{new ActRoot::ModularData()};
     // Prepare outpur file
     auto outFileTPC{TFile::Open("../DebugOutputs/TPCData.root", "RECREATE")};
-    auto outFileSils{TFile::Open("../DebugOutputs/SilData.root", "RECREATE")};
-    auto outTreeTPC{new TTree("TPCData", "TPC Data Tree")};
-    auto outTreeSils{new TTree("SilData", "Silicon Data Tree")};
-    auto outTreeModular{new TTree("ModularData", "Modular Data Tree")};
+    auto outFileSils{TFile::Open("../DebugOutputs/test_merger_0001.root", "RECREATE")};
+    auto outTreeTPC{new TTree("GETTree", "TPC Data Tree")};
+    auto outTreeSils{new TTree("VXITree", "Silicon Data Tree")};
     outTreeTPC->Branch("TPCData", &TPCDataOut);
     outTreeSils->Branch("SilData", &silDataOut);
-    outTreeModular->Branch("ModularData", &modularDataOut);
+    outTreeSils->Branch("ModularData", &modularDataOut);
     // Fill the trees
     int nEntries = tree->GetEntries();
     std::cout << BOLDGREEN;
@@ -93,19 +92,33 @@ void silData_ActRootChanges()
         ActRoot::Cluster clusterLight;
         clusterLight.SetLine(lineLight);
         TPCDataOut->fClusters.push_back(clusterLight);
-
+        TPCDataOut->fRPs.push_back(rpF);
         ROOT::Math::XYZVectorF dirHeavy{
-                        static_cast<float>(TMath::Cos(theta3Lab)),
-                        static_cast<float>(TMath::Sin(theta3Lab) * TMath::Sin(phi3Lab)),
-                        static_cast<float>(TMath::Sin(theta3Lab) * TMath::Cos(phi3Lab))
+                        static_cast<float>(TMath::Cos(theta4Lab)),
+                        static_cast<float>(TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab)),
+                        static_cast<float>(TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab))
                     };
-        ROOT::Math::XYZPointF pointHeavy{rp->X() + dirLight.X() * 2, 
-                                         rp->Y() + dirLight.Y() * 2, 
-                                         rp->Z() + dirLight.Z() * 2};
+        ROOT::Math::XYZPointF pointHeavy{rp->X() + dirHeavy.X() * 2, 
+                                         rp->Y() + dirHeavy.Y() * 2, 
+                                         rp->Z() + dirHeavy.Z() * 2};
         ActRoot::Line lineHeavy(rpF, pointHeavy);
         ActRoot::Cluster clusterHeavy;
         clusterHeavy.SetLine(lineHeavy);
         TPCDataOut->fClusters.push_back(clusterHeavy);
+
+        ROOT::Math::XYZVectorF dirBeam{
+                        static_cast<float>(1),
+                        static_cast<float>(0),
+                        static_cast<float>(0)
+                    };
+        ROOT::Math::XYZPointF pointBeam{rp->X() + dirBeam.X() * 2, 
+                             rp->Y() + dirBeam.Y() * 2, 
+                             rp->Z() + dirBeam.Z() * 2};
+        ActRoot::Line lineBeam(rpF, pointBeam);
+        ActRoot::Cluster clusterBeam;
+        clusterBeam.SetLine(lineBeam);
+        clusterBeam.SetBeamLike(true);
+        TPCDataOut->fClusters.push_back(clusterBeam);
         // Fill ModularData
         bool LateralAndHeavy {silData && (silData->fSiN["l0"].size() != 0 || silData->fSiN["r0"].size() != 0)
                                      && (silData->fSiN["f2"].size() != 0 || silData->fSiN["f3"].size() != 0)};
@@ -132,7 +145,6 @@ void silData_ActRootChanges()
         }
         outTreeTPC->Fill();
         outTreeSils->Fill();
-        outTreeModular->Fill();
 
         TPCDataOut->Clear();
         silDataOut->Clear();

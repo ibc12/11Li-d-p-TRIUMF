@@ -122,15 +122,12 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
                 if (T3AfterSil0 > 0. && layer0 == "f0")
                 {
                     std::string layer1;
-                    for (auto layer : silLayers)
+                    std::tie(silIndex1, silPoint1) = sils->FindSPInLayer("f1", vertex, dirLight);
+                    if (silIndex1 != -1)
                     {
-                        std::tie(silIndex1, silPoint1) = sils->FindSPInLayer(layer, vertex, dirLight);
-                        if (silIndex1 != -1)
-                        {
-                            layer1 = layer;
-                            break;
-                        }
+                        layer1 = "f1";
                     }
+                    
                     if (silIndex1 == -1)
                     {
                     } // If a silicon is not reached, don't continue with punchthough calculation
@@ -207,6 +204,50 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
                 // Fill map
                 silData->fSiE[layer2].push_back(eLoss0);
                 silData->fSiN[layer2].push_back(silIndex2);
+                // Apply 2nd layer of silicons
+                double T4AfterInterGas{};
+                int silIndex3{};
+                ROOT::Math::XYZPoint silPoint3{};
+                double eLoss3{};
+                double T4AfterSil1{-1};
+                if (T4AfterSil0 > 0. && layer2 == "f2")
+                {
+                    std::string layer3;
+                        std::tie(silIndex3, silPoint3) = sils->FindSPInLayer("f3", vertex, dirHeavy);
+                        if (silIndex3 != -1)
+                        {
+                            layer3 = "f3";
+                        }
+                    
+                    if (silIndex3 == -1)
+                    {
+                    } // If a silicon is not reached, don't continue with punchthough calculation
+                    else
+                    {
+                        T4AfterInterGas = {srim->SlowWithStraggling("heavy", T4AfterSil0, (silPoint2 - silPoint3).R())};
+                        if (T4AfterInterGas == 0)
+                        {
+                        } // If slow in gas don't continue with calculation
+                        else
+                        {
+                            T4AfterSil1 = srim->SlowWithStraggling("heavyInSil", T4AfterInterGas, sils->GetLayer(layer3).GetUnit().GetThickness(),
+                                                                angleWithNormal);
+                            auto eLoss1preSilRes{T4AfterInterGas - T4AfterSil1};
+                            ApplyNaN(eLoss1preSilRes, sils->GetLayer(layer3).GetThresholds().at(silIndex3));
+                            if (!std::isnan(eLoss1preSilRes))
+                            {
+                            // Apply resolution
+                            eLoss3 = gRandom->Gaus(eLoss1preSilRes, silRes.Eval(eLoss1preSilRes)); // after silicon resolution
+                            ApplyNaN(eLoss3, sils->GetLayer(layer3).GetThresholds().at(silIndex3));
+                            if (std::isnan(eLoss3))
+                                eLoss3 = 0;
+                            }
+                        }
+                        // Fill map
+                        silData->fSiE[layer3].push_back(eLoss3);
+                        silData->fSiN[layer3].push_back(silIndex3);
+                    }
+                }
             }
         }
     }
