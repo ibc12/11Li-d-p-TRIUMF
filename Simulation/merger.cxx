@@ -37,9 +37,9 @@ void merger()
     std::string outputPath = oss.str();
 
     std::vector<std::string> files {
-        outputPath + "2H_1H_TRIUMF_Eex_0.000_nPS_0_pPS_0.root",
-        outputPath + "2H_1H_TRIUMF_Eex_0.130_nPS_0_pPS_0.root",
-        outputPath + "2H_1H_TRIUMF_Eex_0.435_nPS_0_pPS_0.root"
+        outputPath + "2H_1H_TRIUMF_Eex_0.000_nPS_0_pPS_0_silicons_reverse.root",
+        outputPath + "2H_1H_TRIUMF_Eex_0.130_nPS_0_pPS_0_silicons_reverse.root",
+        outputPath + "2H_1H_TRIUMF_Eex_0.435_nPS_0_pPS_0_silicons_reverse.root"
     };
 
     // Read dfs

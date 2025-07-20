@@ -8,7 +8,7 @@
 void profile_heavy()
 {
     // Energías iniciales en MeV
-    std::vector<double> initialEnergies{10, 20, 30, 40, 50, 60, 70, 80};
+    std::vector<double> initialEnergies{10, 20, 25, 30, 40, 50, 60, 70, 80};
 
     // Colors for graph
     std::vector<int> colors = {
@@ -17,7 +17,7 @@ void profile_heavy()
     };
 
     // Partículas
-    std::vector<std::string> particles{"11Li", "9Li", "8Li", "7Li"};
+    std::vector<std::string> particles{"1H", "2H"};
 
     // Paso en mm
     double step{1.};
@@ -31,6 +31,7 @@ void profile_heavy()
 
         // Cargar SRIM
         auto *srim = new ActPhysics::SRIM;
+        srim->SetUseSpline(false);
         std::string path = "../SRIM files/";
         std::string gas = "900mb_CF4_95-5";
         srim->ReadTable(p, path + p + "_" + gas + ".txt");

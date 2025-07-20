@@ -10,6 +10,8 @@
 #include "ActDecayGenerator.h"
 #include "ActKinematicGenerator.h"
 #include "ActSilData.h"
+#include "ActLine.h"
+#include "ActUtils.h"
 
 #include "TCanvas.h"
 #include "TEfficiency.h"
@@ -297,24 +299,30 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     const double sigmaPercentBeam{0.008};
     // Flags for resolution
     bool IC{true}; // If true, we will slow the beam in the IC
+    bool RestOfBeamLine {true}; // If true enables CFA and mylar of entrance
     bool exResolution{true};
 
     // SRIM
     auto *srim{new ActPhysics::SRIM};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_95-5"};
-    std::string ICgas{"100mb_CF4"};
+    std::string ICgas{"70mb_CF4"};
+    std::string CFAgas{"6mb_butane"};
     std::string Mylar{"Mylar"};
     std::string silicon{"silicon"};
     srim->ReadTable("beam", path + beam + "_" + gas + ".txt");
     srim->ReadTable("beamIC", path + beam + "_" + ICgas + ".txt");
+    srim->ReadTable("beamCFA", path + beam + "_" + CFAgas + ".txt");
     srim->ReadTable("beamMylar", path + beam + "_" + Mylar + ".txt");
     srim->ReadTable("light", path + light + "_" + gas + ".txt");
     srim->ReadTable("heavy", path + heavy + "_" + gas + ".txt");
     srim->ReadTable("lightInSil", path + light + "_" + silicon + ".txt");
     srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
+    srim->SetStragglingLISE("heavyInSil", "../LISE files/" + heavy + "_silicon" + ".txt");
+    srim->SetStragglingLISE("heavy", "../LISE files/" + heavy + "_gas_95-5" + ".txt");
     // srim->SetStragglingLISE("beamIC", "../LISE files/" + beam + "_gasIC" + ".txt");
     // srim->SetStragglingLISE("beamMylar", "../LISE files/" + beam + "_Mylar" + ".txt");
+    // srim->SetStragglingLISE("beam", "../LISE files/" + beam + "_gasCFA" + ".txt");
 
     // Kinematics
     auto *kinTheo{new ActPhysics::Kinematics{beam, target, light, heavy, Tbeam, Ex}};
@@ -469,6 +477,16 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     // Beam particle
     auto hTbeam{Histos::T1Lab.GetHistogram()};
 
+    // Debug histos
+    auto hDeltaEGasThetaLight {new TH2D("hDeltaEGasThetaLight", "Delta E in gas vs Theta3Lab for light particle",
+        180, 0, 180, 200, 0, 3)};
+    auto hDeltaEGasThetaLightSide {new TH2D("hDeltaEGasThetaLightSide", "Delta E in gas vs Theta3Lab for light particle",
+        180, 0, 180, 200, 0, 3)};
+    auto hKinDebug {Histos::Kin.GetHistogram()};
+    hKinDebug->SetTitle("Kinematics are above 2KeV ");
+    // Heavy PID in telescope
+    auto hHeavyPIDTelescope{Histos::PIDHeavyTelescope.GetHistogram()};
+
     // File to save data
     TString fileName{
         TString::Format("../Outputs/%.1fMeV/%s_%s_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d_%s.root", Tbeam / 11, target.c_str(), light.c_str(), Ex, neutronPS, protonPS, silConfig.c_str())};
@@ -516,6 +534,10 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     outTreeNoCut->Branch("RP", &RPNoCuts_tree);
     ActRoot::SilData *silData_tree{new ActRoot::SilData()};
     outTreeNoCut->Branch("silData", &silData_tree);
+    double eLossSilf2Heavy {};
+    outTreeNoCut->Branch("eLossSilf2Heavy", &eLossSilf2Heavy);
+    double eLossSilf3Heavy {};
+    outTreeNoCut->Branch("eLossSilf3Heavy", &eLossSilf3Heavy);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
     if (neutronPS == 2)
@@ -526,6 +548,11 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     if (IC)
     {
         Tbeam += 1.4; // MeV, to account for the energy loss in the IC
+    }
+    // Modify Ebeam if it crosses the CFA and mylar
+    if (RestOfBeamLine)
+    {
+        Tbeam += 1.63; // MeV, to account for the energy loss in the CFA and mylar
     }
 
     // RUN!
@@ -589,6 +616,15 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 
             // TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.0115);
             // TbeamRand = srim->SlowWithStraggling("beamIC", TbeamRand, 40);
+        }
+        if (RestOfBeamLine)
+        {
+            TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.0038); // Mylar CFA
+            TbeamRand = srim->SlowWithStraggling("beamCFA", TbeamRand, 19); // Gas CFA
+
+            TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.012); // Entrance window of ACTAR
+
+            TbeamRand = srim->SlowWithStraggling("beam", TbeamRand, 48); // Mylar CFA
         }
         hTbeam->Fill(TbeamRand);
         auto TbeamCorr{srim->SlowWithStraggling("beam", TbeamRand, vertex.X())};
@@ -735,6 +771,48 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 break;
             }
         }
+        // Check now hit of heavy particle
+        int silIndexHeavy0 = -1;
+        ROOT::Math::XYZPoint silPointHeavy0;
+        std::string layerHeavy0;
+        std::tie(silIndexHeavy0, silPointHeavy0) = sils->FindSPInLayer("f2", vertex, directionHeavy);
+        bool hitHeavy0 {false};
+        if(silIndexHeavy0 != -1)
+        {
+            hitHeavy0 = true;
+            layerHeavy0 = "f2";
+        }
+        // And now check hit in f3
+        int silIndexHeavy1 = -1;
+        ROOT::Math::XYZPoint silPointHeavy1;
+        std::string layerHeavy1;
+        bool hitHeavy1 {false};
+        if(hitHeavy0)
+        {
+            std::tie(silIndexHeavy1, silPointHeavy1) = sils->FindSPInLayer("f3", vertex, directionHeavy);
+            if(silIndexHeavy1 != -1)
+            {
+                hitHeavy1 = true;
+                layerHeavy1 = "f3";
+            }
+        }
+        // Compute eLoss in silicons for Heavy particle
+        if(hitHeavy0 && hitHeavy1)
+        {
+            auto normalHeavy {sils->GetLayer(layerHeavy0).GetNormal()};
+            auto angleWithNormalHeavy{TMath::ACos(directionHeavy.Unit().Dot(normalHeavy.Unit()))};
+            auto T4InSil0{srim->SlowWithStraggling("heavy", T4Lab, (silPointHeavy0 - vertex).R())};
+            auto T4AfterSil0{srim->SlowWithStraggling("heavyInSil", T4InSil0, sils->GetLayer(layerHeavy0).GetUnit().GetThickness(), angleWithNormalHeavy)};
+            auto T4InSil1{srim->SlowWithStraggling("heavy", T4AfterSil0, (silPointHeavy1 - silPointHeavy0).R())};
+            auto T4AfterSil1{srim->SlowWithStraggling("heavyInSil", T4InSil1, sils->GetLayer(layerHeavy1).GetUnit().GetThickness(), angleWithNormalHeavy)};
+            auto eLossf2 = T4InSil0 - T4AfterSil0;
+            auto eLossf3 = T4InSil1 - T4AfterSil1;
+            hHeavyPIDTelescope->Fill(eLossf2, eLossf3);
+            // Asign eLoss to ttree data
+            eLossSilf2Heavy = eLossf2;
+            eLossSilf3Heavy = eLossf3;
+        }
+        
         // Fill the SilData for silicon hit on all cases
         FillSiliconHitsNoCuts(silData, theta3Lab, phi3Lab, T3Lab, theta4Lab, phi4Lab, T4Lab, vertex, AllsilLayers, sils, *silRes, srim);
         // Fill tree with no cuts
@@ -778,7 +856,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         }
 
         // Slow down light in gas
-        auto T3AtSil{srim->SlowWithStraggling("light", T3Lab, (silPoint0 - vertex).R())};
+        auto T3AtSil{srim->SlowWithStraggling("light", T3Lab, (silPoint0 - vertex).R())};          
         // Check if stopped
         ApplyNaN(T3AtSil);
         if (std::isnan(T3AtSil))
@@ -801,6 +879,40 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             }
             continue;
         }
+        double DeltaELength {-1};
+        if(layer0 == "f0")
+        {
+            auto line {new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
+            auto boundaryPoint {line->MoveToX(256)}; 
+            auto T3AtSilLight{T3Lab - srim->SlowWithStraggling("light", T3Lab, (boundaryPoint - vertex).R())};
+            DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
+            hDeltaEGasThetaLight->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
+            if(T3AtSilLight / (boundaryPoint - vertex).R() * 1000 > 2)
+                hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+            delete line;
+        }  
+        if(layer0 == "l0")
+        {
+            auto line {new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
+            auto boundaryPoint {line->MoveToY(256)}; 
+            auto T3AtSilLight{T3Lab - srim->SlowWithStraggling("light", T3Lab, (boundaryPoint - vertex).R())};
+            DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
+            hDeltaEGasThetaLightSide->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
+            delete line;
+            if(T3AtSilLight / (boundaryPoint - vertex).R() * 1000 > 2)
+                hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+        }  
+        if(layer0 == "r0")
+        {
+            auto line {new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
+            auto boundaryPoint {line->MoveToY(0)}; 
+            auto T3AtSilLight{T3Lab - srim->SlowWithStraggling("light", T3Lab, (boundaryPoint - vertex).R())};
+            DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
+            hDeltaEGasThetaLightSide->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
+            delete line;
+            if(T3AtSilLight / (boundaryPoint - vertex).R() * 1000 > 2)
+                hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+        } 
 
         // Slow down in silicon
         auto normal{sils->GetLayer(layer0).GetNormal()};
@@ -862,7 +974,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         }
 
         // Reconstruct!
-        bool isOk{T3AfterSil0 == 0 || T3AfterSil1 == 0}; // no punchthrouhg
+        bool isOk{T3AfterSil0 == 0 || T3AfterSil1 == 0 && DeltaELength > 2}; // no punchthrouhg
         if (isOk)
         {
             // Assuming no punchthrough!
@@ -1134,9 +1246,19 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         effDetectionL1CM->Draw("apl");
 
         auto cBeam{new TCanvas{"cBeam", "Beam Spectra"}};
-        cBeam->DivideSquare(1);
+        cBeam->DivideSquare(4);
         cBeam->cd(1);
         hTbeam->DrawClone();
-    }
+
+        auto cDebug {new TCanvas{"cDebug", "Debugging plots"}};
+        cDebug->DivideSquare(4);
+        cDebug->cd(2);
+        hDeltaEGasThetaLight->DrawClone("colz");
+        cDebug->cd(3);
+        hDeltaEGasThetaLightSide->DrawClone("colz");
+        cDebug->cd(4);
+        hKinDebug->DrawClone("colz");
+
+     }
 }
 #endif

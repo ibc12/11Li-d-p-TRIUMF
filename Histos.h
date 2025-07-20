@@ -56,6 +56,10 @@ const ROOT::RDF::TH2DModel EsilAftervsBefore {"hEsilAftervsBefore", "EsilAftervs
 const ROOT::RDF::TH2DModel PIDHeavy {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
                                 30};
 
+// PID heavy telescope
+const ROOT::RDF::TH2DModel PIDHeavyTelescope {"hPIDTelescope", "PID;#DeltaE_{Sil0} [MeV];#DeltaE_{sil1} [MeV]", 350, 0, 30, 350, 0,
+                                90};
+
 // PID light
 const ROOT::RDF::TH2DModel PIDLight {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 50, 350, 0,
                                 10};

@@ -79,16 +79,17 @@ void silData_ActRootChanges()
         // Fill SilData
         silDataOut = silData;
         // Fill TPCData
+        ROOT::Math::XYZPointF rpScaled = {rp->X() / 2, rp->Y() / 2, rp->Z() / 2}; // Scale by factor 2
         ROOT::Math::XYZVectorF dirLight{
                         static_cast<float>(TMath::Cos(theta3Lab)),
                         static_cast<float>(TMath::Sin(theta3Lab) * TMath::Sin(phi3Lab)),
                         static_cast<float>(TMath::Sin(theta3Lab) * TMath::Cos(phi3Lab))
                     };
-        ROOT::Math::XYZPointF pointLight{rp->X() + dirLight.X() * 2, 
-                                         rp->Y() + dirLight.Y() * 2, 
-                                         rp->Z() + dirLight.Z() * 2};
-        ROOT::Math::XYZPointF rpF{rp->X(), rp->Y(), rp->Z()};
-        ActRoot::Line lineLight(rpF, pointLight);
+        ROOT::Math::XYZPointF pointLight{rpScaled.X() + dirLight.X() * 2, 
+                                         rpScaled.Y() + dirLight.Y() * 2, 
+                                         rpScaled.Z() + dirLight.Z() * 2};
+        ROOT::Math::XYZPointF rpF{rpScaled.X(), rpScaled.Y(), rpScaled.Z()};
+        ActRoot::Line lineLight(pointLight, rpF);
         ActRoot::Cluster clusterLight;
         clusterLight.SetLine(lineLight);
         TPCDataOut->fClusters.push_back(clusterLight);
@@ -98,10 +99,10 @@ void silData_ActRootChanges()
                         static_cast<float>(TMath::Sin(theta4Lab) * TMath::Sin(phi4Lab)),
                         static_cast<float>(TMath::Sin(theta4Lab) * TMath::Cos(phi4Lab))
                     };
-        ROOT::Math::XYZPointF pointHeavy{rp->X() + dirHeavy.X() * 2, 
-                                         rp->Y() + dirHeavy.Y() * 2, 
-                                         rp->Z() + dirHeavy.Z() * 2};
-        ActRoot::Line lineHeavy(rpF, pointHeavy);
+        ROOT::Math::XYZPointF pointHeavy{rpScaled.X() + dirHeavy.X() * 2, 
+                                         rpScaled.Y() + dirHeavy.Y() * 2, 
+                                         rpScaled.Z() + dirHeavy.Z() * 2};
+        ActRoot::Line lineHeavy(pointHeavy, rpF);
         ActRoot::Cluster clusterHeavy;
         clusterHeavy.SetLine(lineHeavy);
         TPCDataOut->fClusters.push_back(clusterHeavy);
@@ -111,10 +112,10 @@ void silData_ActRootChanges()
                         static_cast<float>(0),
                         static_cast<float>(0)
                     };
-        ROOT::Math::XYZPointF pointBeam{rp->X() + dirBeam.X() * 2, 
-                             rp->Y() + dirBeam.Y() * 2, 
-                             rp->Z() + dirBeam.Z() * 2};
-        ActRoot::Line lineBeam(rpF, pointBeam);
+        ROOT::Math::XYZPointF pointBeam{rpScaled.X() + dirBeam.X() * 2, 
+                                        rpScaled.Y() + dirBeam.Y() * 2, 
+                                        rpScaled.Z() + dirBeam.Z() * 2};
+        ActRoot::Line lineBeam(pointBeam, rpF);
         ActRoot::Cluster clusterBeam;
         clusterBeam.SetLine(lineBeam);
         clusterBeam.SetBeamLike(true);
