@@ -268,7 +268,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     std::cout << "TPC: " << tpc.X() << " " << tpc.Y() << " " << tpc.Z() << '\n';
     // Silicons
     auto *sils{new ActPhysics::SilSpecs};
-    std::string silConfig("silicons_reverse");
+    std::string silConfig("silspecs_spacer");
     sils->ReadFile("../configs/" + silConfig + ".conf");
     sils->Print();
     const double sigmaSil{0.060 / 2.355}; // Si resolution
@@ -814,7 +814,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         }
         
         // Fill the SilData for silicon hit on all cases
-        FillSiliconHitsNoCuts(silData, theta3Lab, phi3Lab, T3Lab, theta4Lab, phi4Lab, T4Lab, vertex, AllsilLayers, sils, *silRes, srim);
+        // FillSiliconHitsNoCuts(silData, theta3Lab, phi3Lab, T3Lab, theta4Lab, phi4Lab, T4Lab, vertex, AllsilLayers, sils, *silRes, srim);
         // Fill tree with no cuts
         theta3CM_treeNoCut = theta3CMBefore;
         theta3Lab_treeNoCut = theta3Lab * TMath::RadToDeg();
@@ -887,7 +887,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             auto T3AtSilLight{T3Lab - srim->SlowWithStraggling("light", T3Lab, (boundaryPoint - vertex).R())};
             DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
             hDeltaEGasThetaLight->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
-            if(T3AtSilLight / (boundaryPoint - vertex).R() * 1000 > 2)
+            if(DeltaELength > 2)
                 hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
             delete line;
         }  
@@ -899,7 +899,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
             hDeltaEGasThetaLightSide->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
             delete line;
-            if(T3AtSilLight / (boundaryPoint - vertex).R() * 1000 > 2)
+            if(DeltaELength > 2)
                 hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
         }  
         if(layer0 == "r0")
@@ -910,7 +910,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
             hDeltaEGasThetaLightSide->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
             delete line;
-            if(T3AtSilLight / (boundaryPoint - vertex).R() * 1000 > 2)
+            if(DeltaELength > 2)
                 hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
         } 
 
@@ -974,7 +974,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         }
 
         // Reconstruct!
-        bool isOk{T3AfterSil0 == 0 || T3AfterSil1 == 0 && DeltaELength > 2}; // no punchthrouhg
+        bool isOk{(T3AfterSil0 == 0 || T3AfterSil1 == 0)  &&  (DeltaELength > 2)}; // no punchthrouhg
         if (isOk)
         {
             // Assuming no punchthrough!

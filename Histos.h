@@ -57,12 +57,16 @@ const ROOT::RDF::TH2DModel PIDHeavy {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [M
                                 30};
 
 // PID heavy telescope
-const ROOT::RDF::TH2DModel PIDHeavyTelescope {"hPIDTelescope", "PID;#DeltaE_{Sil0} [MeV];#DeltaE_{sil1} [MeV]", 350, 0, 30, 350, 0,
+const ROOT::RDF::TH2DModel PIDHeavyTelescope {"hPIDTelescope", "PID;E_{Sil f3} [MeV];#DeltaE_{sil f2} [MeV]", 350, 0, 30, 350, 0,
                                 90};
 
 // PID light
 const ROOT::RDF::TH2DModel PIDLight {"hPID", "PID;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 50, 350, 0,
                                 10};
+
+// PID light f0 f1
+const ROOT::RDF::TH2DModel PIDLightF0F1 {"hPIDF0F1", "PID;E_{Sil f1} [MeV];#DeltaE_{Sil f0} [MeV]", 350, 0, 80, 350, 0,
+                                80};
 
 // PID heavy length
 const ROOT::RDF::TH2DModel PIDHeavylength {"hPIDlength", "PID length;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
@@ -79,6 +83,10 @@ const ROOT::RDF::TH2DModel Kin {"hKin", "Kinematics;#theta_{light, Lab} [#circ];
 // Kin heavy
 const ROOT::RDF::TH2DModel KinHeavy {"hKinHeavy", "Kinematics;#theta_{heavy, Lab} [#circ];E_{heavy} [MeV]", 100, 0, 20, 350, 20,
                                 100};
+
+// Theta Lab vs Theta CM 
+const ROOT::RDF::TH2DModel Theta3Theta4 {"hTheta3Theta4", "Theta3Lab vs Theta4Lab; #theta3_{Lab} [deg]; #theta4_{Lab} [deg]",
+                                180, 0, 180, 180, 0, 180};
                                 
 // Theta Lab vs Theta CM 
 const ROOT::RDF::TH2DModel ThetaCMThetaLab {"hThetaCMThetaLab", "ThetaCM vs ThetaLab; #theta_{CM} [deg]; #theta_{Lab} [deg]",

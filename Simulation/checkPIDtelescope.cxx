@@ -115,6 +115,7 @@ void checkPIDtelescope()
     // PIDs
     std::shared_ptr<TH2D> hPIDfront = Histos::PIDLight.GetHistogram();
     std::shared_ptr<TH2D> hPIDLengthfront = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDfrontF0F1 = Histos::PIDLightF0F1.GetHistogram();
     // Creare the side ones, although it does not hit in them, just to be able to use the same plotter macro
     std::shared_ptr<TH2D> hPIDside = Histos::PIDLight.GetHistogram();
     std::shared_ptr<TH2D> hPIDLengthside = Histos::PIDLight.GetHistogram();
@@ -345,6 +346,7 @@ void checkPIDtelescope()
     TFile* outFile = new TFile(("../DebugOutputs/checkPID_outputTelescope" + particle  + ".root").c_str(), "RECREATE");
     hkinLi->Write("hkinLi");
     hPIDfront->Write("hPIDfront");
+    hPIDfrontF0F1->Write("hPIDfrontF0F1");
     hPIDLengthfront->Write("hPIDLengthfront");
     hPIDside->Write("hPIDside");
     hPIDLengthside->Write("hPIDLengthside");

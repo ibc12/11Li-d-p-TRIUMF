@@ -77,7 +77,7 @@ void checkPIDgas()
     ActRoot::TPCParameters tpc {"Actar"};
     // Silicons
     auto* sils {new ActPhysics::SilSpecs};
-    sils->ReadFile("../configs/silicons_reverse.conf");
+    sils->ReadFile("../configs/silicons_experiment.conf");
     sils->Print();
     const double sigmaSil {0.060 / 2.355}; // Si resolution
     auto silRes = std::make_unique<TF1>(
@@ -97,7 +97,7 @@ void checkPIDgas()
     sils->DrawGeo();
 
     // SRIM
-    std::string particle {"1H"};
+    std::string particle {"4He"};
     std::string path{"../SRIM files/"};
     std::string gas{"900mb_CF4_95-5"};
     std::string gasJuan{"952mb_mixture"};
@@ -122,8 +122,10 @@ void checkPIDgas()
     auto hkinLi {Histos::KinHeavy.GetHistogram()};
     // PIDs
     std::shared_ptr<TH2D> hPIDfront = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDfrontF0F1 = Histos::PIDLightF0F1.GetHistogram();
     std::shared_ptr<TH2D> hPIDLengthfront = Histos::PIDLight.GetHistogram();
     std::shared_ptr<TH2D> hPIDside = Histos::PIDLight.GetHistogram();
+    std::shared_ptr<TH2D> hPIDsideF0F1 = Histos::PIDLight.GetHistogram();
     std::shared_ptr<TH2D> hPIDLengthside = Histos::PIDLight.GetHistogram();
 
     if (particle == "1H" || particle == "2H" || particle == "3H" || particle == "3He" || particle == "4He")
@@ -226,6 +228,25 @@ void checkPIDgas()
         auto energyAfterSil {srim->SlowWithStraggling("ParticleInSil", energyAfterInterGas, sils->GetLayer(layerHit).GetUnit().GetThickness(), angleWithSil)};
 
         double eLoss {energyAfterInterGas - energyAfterSil};
+        if(layerHit == "f0" || energyAfterSil > 0)
+        {
+            // Check hit for the particle
+            int silIndex1 = -1;
+            ROOT::Math::XYZPoint silPoint1;
+            std::string layerHit1;
+            std::tie(silIndex1, silPoint1) = sils->FindSPInLayer("f1", vertex, directionParticle);
+            if(silIndex1 != -1)
+            {
+                auto distanceGas {(silPoint - silPoint1).R()};
+                auto energyBeforeSilicon1 {srim->SlowWithStraggling("ParticleInGas", energyAfterSil, distanceGas)};
+                if(energyBeforeSilicon1 > 0)
+                {
+                    auto energyAfterFirstSil {srim->SlowWithStraggling("ParticleInSil", energyBeforeSilicon1, sils->GetLayer("f1").GetUnit().GetThickness(), angleWithSil)};
+                    double eLoss1 {energyBeforeSilicon1 - energyAfterFirstSil};
+                    hPIDfrontF0F1->Fill(eLoss1, eLoss);
+                }
+            }
+        }
         //if(layerHit == "f0")
         //{
         //    eLoss = energyAfterInterGas - energyAfterSil;
@@ -308,6 +329,7 @@ void checkPIDgas()
     hPIDLengthfront->Write("hPIDLengthfront");
     hPIDside->Write("hPIDside");
     hPIDLengthside->Write("hPIDLengthside");
+    hPIDfrontF0F1->Write("hPIDfrontF0F1");
     outFile->Close();
     delete outFile;
 
