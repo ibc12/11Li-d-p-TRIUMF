@@ -8,7 +8,7 @@
 void profile_heavy()
 {
     // Energías iniciales en MeV
-    std::vector<double> initialEnergies{10, 20, 25, 30, 40, 50, 60, 70, 80};
+    std::vector<double> initialEnergies{10, 20, 30, 80};
 
     // Colors for graph
     std::vector<int> colors = {
@@ -17,10 +17,10 @@ void profile_heavy()
     };
 
     // Partículas
-    std::vector<std::string> particles{"1H", "2H"};
+    std::vector<std::string> particles{"1H", "2H", "11Li"};
 
     // Paso en mm
-    double step{1.};
+    double step{2.};
 
     // Vector de TGraph: [partícula][energía]
     std::vector<std::vector<TGraph*>> eLossGraphs(particles.size(), std::vector<TGraph*>(initialEnergies.size(), nullptr));
@@ -47,7 +47,7 @@ void profile_heavy()
             graph->SetName(gName.c_str());
             graph->SetTitle((p + ", " + "All posible energies").c_str());
             graph->GetXaxis()->SetTitle("Distance (mm)");
-            graph->GetYaxis()->SetTitle("dE per step (keV/mm)");
+            graph->GetYaxis()->SetTitle("dE per step (keV/2mm)");
 
             double Eiter = initialEnergy;
             int point = 0;
@@ -84,12 +84,32 @@ void profile_heavy()
             if (j == 0)
             {
                 g->SetLineColor(colors[j % colors.size()]);
+                if(particles[i] == "11Li")
+                {
+                    g->SetMaximum(200);
+                    g->SetMinimum(0);
+                }
+                else
+                {
+                    g->SetMaximum(10);
+                    g->SetMinimum(0);
+                }
                 g->SetLineWidth(2);
                 g->Draw("APL");
             }
             else
             {
                 g->SetLineColor(colors[j % colors.size()]);
+                if(particles[i] == "11Li")
+                {
+                    g->SetMaximum(100);
+                    g->SetMinimum(0);
+                }
+                else
+                {
+                    g->SetMaximum(10);
+                    g->SetMinimum(0);
+                }
                 g->SetLineWidth(2);
                 g->Draw("LP SAME");
             }

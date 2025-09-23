@@ -1,11 +1,11 @@
  ==================================================================
               SRIM version ---> SRIM-2013.00
-              Calc. date   ---> July 19, 2025 
+              Calc. date   ---> July 25, 2025 
  ==================================================================
 
  Disk File Name = /media/data/Simulations/TRIUNF/11Li(d,p)/SRIM files/9He_silicon.txt
 
- Ion = Helium [2] , Mass = 9.04395 amu
+ Ion = Helium [2] , Mass = 9.043946 amu
 
  Target Density =  2.3212E+00 g/cm3 = 4.9770E+22 atoms/cm3
  Target is a GAS 

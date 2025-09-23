@@ -70,7 +70,7 @@ const ROOT::RDF::TH2DModel PIDLightF0F1 {"hPIDF0F1", "PID;E_{Sil f1} [MeV];#Delt
 
 // PID heavy length
 const ROOT::RDF::TH2DModel PIDHeavylength {"hPIDlength", "PID length;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
-                                0.3};
+                                0.15};
 
 // PID light length
 const ROOT::RDF::TH2DModel PIDLightlength {"hPIDlength", "PID length;E_{Sil} [MeV];#DeltaE_{gas} [MeV]", 350, 0, 90, 350, 0,
@@ -86,7 +86,7 @@ const ROOT::RDF::TH2DModel KinHeavy {"hKinHeavy", "Kinematics;#theta_{heavy, Lab
 
 // Theta Lab vs Theta CM 
 const ROOT::RDF::TH2DModel Theta3Theta4 {"hTheta3Theta4", "Theta3Lab vs Theta4Lab; #theta3_{Lab} [deg]; #theta4_{Lab} [deg]",
-                                180, 0, 180, 180, 0, 180};
+                                180, 0, 180, 180, 0, 30};
                                 
 // Theta Lab vs Theta CM 
 const ROOT::RDF::TH2DModel ThetaCMThetaLab {"hThetaCMThetaLab", "ThetaCM vs ThetaLab; #theta_{CM} [deg]; #theta_{Lab} [deg]",

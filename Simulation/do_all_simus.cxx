@@ -101,7 +101,7 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
             auto normal{sils->GetLayer(layer0).GetNormal()};
             auto angleWithNormal{TMath::ACos(dirLight.Unit().Dot(normal.Unit()))};
             auto T3AfterSil0{srim->SlowWithStraggling("lightInSil", T3AtSil, sils->GetLayer(layer0).GetUnit().GetThickness(),
-                                                    angleWithNormal)};
+                                                      angleWithNormal)};
             auto eLoss0preSilRes{T3AtSil - T3AfterSil0};
             ApplyNaN(eLoss0preSilRes, sils->GetLayer(layer0).GetThresholds().at(silIndex0));
             if (!std::isnan(eLoss0preSilRes))
@@ -129,7 +129,7 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
                     {
                         layer1 = "f1";
                     }
-                    
+
                     if (silIndex1 == -1)
                     {
                     } // If a silicon is not reached, don't continue with punchthough calculation
@@ -142,16 +142,16 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
                         else
                         {
                             T3AfterSil1 = srim->SlowWithStraggling("lightInSil", T3AfterInterGas, sils->GetLayer(layer1).GetUnit().GetThickness(),
-                                                                angleWithNormal);
+                                                                   angleWithNormal);
                             auto eLoss1preSilRes{T3AfterInterGas - T3AfterSil1};
                             ApplyNaN(eLoss1preSilRes, sils->GetLayer(layer1).GetThresholds().at(silIndex1));
                             if (!std::isnan(eLoss1preSilRes))
                             {
-                            // Apply resolution
-                            eLoss1 = gRandom->Gaus(eLoss1preSilRes, silRes.Eval(eLoss1preSilRes)); // after silicon resolution
-                            ApplyNaN(eLoss1, sils->GetLayer(layer1).GetThresholds().at(silIndex1));
-                            if (std::isnan(eLoss1))
-                                eLoss1 = 0;
+                                // Apply resolution
+                                eLoss1 = gRandom->Gaus(eLoss1preSilRes, silRes.Eval(eLoss1preSilRes)); // after silicon resolution
+                                ApplyNaN(eLoss1, sils->GetLayer(layer1).GetThresholds().at(silIndex1));
+                                if (std::isnan(eLoss1))
+                                    eLoss1 = 0;
                             }
                         }
                         // Fill map
@@ -160,9 +160,7 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
                     }
                 }
             }
-            
         }
-        
     }
 
     // Heavy particle
@@ -186,20 +184,20 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
         auto T4AtSil{srim->SlowWithStraggling("heavy", T4Lab, (silPoint2 - vertex).R())};
         // Check if stopped
         ApplyNaN(T4AtSil);
-        if(!std::isnan(T4AtSil))
+        if (!std::isnan(T4AtSil))
         {
             // Slow down in silicon
             auto normal{sils->GetLayer(layer2).GetNormal()};
             auto angleWithNormal{TMath::ACos(dirHeavy.Unit().Dot(normal.Unit()))};
             auto T4AfterSil0{srim->SlowWithStraggling("heavyInSil", T4AtSil, sils->GetLayer(layer2).GetUnit().GetThickness(),
-                                                    angleWithNormal)};
+                                                      angleWithNormal)};
             auto eLoss0preSilRes{T4AtSil - T4AfterSil0};
             ApplyNaN(eLoss0preSilRes, sils->GetLayer(layer2).GetThresholds().at(silIndex2));
-            if(!std::isnan(eLoss0preSilRes))
+            if (!std::isnan(eLoss0preSilRes))
             {
                 auto eLoss0{gRandom->Gaus(eLoss0preSilRes, silRes.Eval(eLoss0preSilRes))}; // after silicon resolution
                 ApplyNaN(eLoss0, sils->GetLayer(layer2).GetThresholds().at(silIndex2));
-                if(std::isnan(eLoss0))
+                if (std::isnan(eLoss0))
                 {
                     eLoss0 = 0;
                 }
@@ -215,12 +213,12 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
                 if (T4AfterSil0 > 0. && layer2 == "f2")
                 {
                     std::string layer3;
-                        std::tie(silIndex3, silPoint3) = sils->FindSPInLayer("f3", vertex, dirHeavy);
-                        if (silIndex3 != -1)
-                        {
-                            layer3 = "f3";
-                        }
-                    
+                    std::tie(silIndex3, silPoint3) = sils->FindSPInLayer("f3", vertex, dirHeavy);
+                    if (silIndex3 != -1)
+                    {
+                        layer3 = "f3";
+                    }
+
                     if (silIndex3 == -1)
                     {
                     } // If a silicon is not reached, don't continue with punchthough calculation
@@ -233,16 +231,16 @@ void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double p
                         else
                         {
                             T4AfterSil1 = srim->SlowWithStraggling("heavyInSil", T4AfterInterGas, sils->GetLayer(layer3).GetUnit().GetThickness(),
-                                                                angleWithNormal);
+                                                                   angleWithNormal);
                             auto eLoss1preSilRes{T4AfterInterGas - T4AfterSil1};
                             ApplyNaN(eLoss1preSilRes, sils->GetLayer(layer3).GetThresholds().at(silIndex3));
                             if (!std::isnan(eLoss1preSilRes))
                             {
-                            // Apply resolution
-                            eLoss3 = gRandom->Gaus(eLoss1preSilRes, silRes.Eval(eLoss1preSilRes)); // after silicon resolution
-                            ApplyNaN(eLoss3, sils->GetLayer(layer3).GetThresholds().at(silIndex3));
-                            if (std::isnan(eLoss3))
-                                eLoss3 = 0;
+                                // Apply resolution
+                                eLoss3 = gRandom->Gaus(eLoss1preSilRes, silRes.Eval(eLoss1preSilRes)); // after silicon resolution
+                                ApplyNaN(eLoss3, sils->GetLayer(layer3).GetThresholds().at(silIndex3));
+                                if (std::isnan(eLoss3))
+                                    eLoss3 = 0;
                             }
                         }
                         // Fill map
@@ -298,8 +296,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     // Sigmas
     const double sigmaPercentBeam{0.008};
     // Flags for resolution
-    bool IC{true}; // If true, we will slow the beam in the IC
-    bool RestOfBeamLine {true}; // If true enables CFA and mylar of entrance
+    bool IC{true};             // If true, we will slow the beam in the IC
+    bool RestOfBeamLine{true}; // If true enables CFA and mylar of entrance
     bool exResolution{true};
 
     // SRIM
@@ -320,6 +318,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     srim->ReadTable("heavyInSil", path + heavy + "_" + silicon + ".txt");
     srim->SetStragglingLISE("heavyInSil", "../LISE files/" + heavy + "_silicon" + ".txt");
     srim->SetStragglingLISE("heavy", "../LISE files/" + heavy + "_gas_95-5" + ".txt");
+    srim->SetStragglingLISE("lightInSil", "../LISE files/" + light + "_silicon" + ".txt");
+    srim->SetStragglingLISE("light", "../LISE files/" + light + "_gas_95-5" + ".txt");
     // srim->SetStragglingLISE("beamIC", "../LISE files/" + beam + "_gasIC" + ".txt");
     // srim->SetStragglingLISE("beamMylar", "../LISE files/" + beam + "_Mylar" + ".txt");
     // srim->SetStragglingLISE("beam", "../LISE files/" + beam + "_gasCFA" + ".txt");
@@ -373,6 +373,18 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         else if (Ex == 5.)
         {
             TString data_to_read{TString::Format("../Inputs/TheoXS/%.1fMeV/dp/angd52nospin.dat", Tbeam / 11)};
+            xs->ReadFile(data_to_read.Data());
+            std::cout << xs->GetTotalXSmbarn() << std::endl;
+            alpha = (NLi11 * Nd * xs->GetTotalXScm2()) / niter;
+            std::cout << "Alpha: " << alpha << std::endl;
+        }
+    }
+    if (neutronPS == 0 && protonPS == 0 && target == "2H" && light == "2H")
+    {
+        if (Ex == 0.)
+        {
+            isThereXS = true;
+            TString data_to_read{TString::Format("../Inputs/TheoXS/%.1fMeV/dd/elastic.dat", Tbeam / 11)};
             xs->ReadFile(data_to_read.Data());
             std::cout << xs->GetTotalXSmbarn() << std::endl;
             alpha = (NLi11 * Nd * xs->GetTotalXScm2()) / niter;
@@ -457,6 +469,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     hRange1->SetTitle("Range");
     auto hT3test{Histos::T3Lab.GetHistogram()};
     hT3test->SetTitle("T3Lab");
+    auto hDistToSils {new TH1D("hDistToSils", "Distance to silicons;Distance [mm];Counts", 200, 0, 400)};
+    auto hEVertexESil {new TH2D("hEVertexESil", "EVertex vs Energy at Sil;Energy [MeV];Energy [MeV]", 200, 0, 80, 200, 0, 80)};
     // Kin and eff for lat silicons
     auto hKinLatSil{Histos::Kin.GetHistogram()};
     hKinLatSil->SetTitle("Kinematics for particles that go to lateral silicons (impact + stop)");
@@ -478,12 +492,23 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     auto hTbeam{Histos::T1Lab.GetHistogram()};
 
     // Debug histos
-    auto hDeltaEGasThetaLight {new TH2D("hDeltaEGasThetaLight", "Delta E in gas vs Theta3Lab for light particle",
-        180, 0, 180, 200, 0, 3)};
-    auto hDeltaEGasThetaLightSide {new TH2D("hDeltaEGasThetaLightSide", "Delta E in gas vs Theta3Lab for light particle",
-        180, 0, 180, 200, 0, 3)};
-    auto hKinDebug {Histos::Kin.GetHistogram()};
-    hKinDebug->SetTitle("Kinematics are above 2KeV ");
+    auto hDeltaEGasThetaLight{new TH2D("hDeltaEGasThetaLight", "Delta E in gas vs Theta3Lab for light particle",
+                                       180, 0, 180, 200, 0, 3)};
+    auto hDeltaEGasThetaLightSide{new TH2D("hDeltaEGasThetaLightSide", "Delta E in gas vs Theta3Lab for light particle",
+                                           180, 0, 180, 200, 0, 3)};
+    auto hKinDebug{new TH2D("hKin", "Kinematics;#theta_{light, Lab} [#circ];E_{light} [MeV]", 350, 0, 165, 350, 0,
+                            60)};
+    hKinDebug->SetTitle("Kinematics for light particle ");
+    auto hKinHeavyDebug{new TH2D("hKin", "Kinematics;#theta_{heavy, Lab} [#circ];E_{heavy} [MeV]", 350, 0, 25, 350, 0,
+                                 85)};
+    hKinDebug->SetTitle("Kinematics for heavy particle ");
+    auto hTheta3Theta4LabDebug{Histos::Theta3Theta4.GetHistogram()};
+    auto hPIDHeavyDebug{Histos::PIDHeavy.GetHistogram()};
+    hPIDHeavyDebug->SetTitle("PID for heavy particle in telescope");
+    auto hSPf0HeavyDebug{Histos::SP.GetHistogram()};
+    hSPf0HeavyDebug->SetTitle("SP for f0");
+    auto hSPf2{Histos::SP.GetHistogram()};
+    hSPf2->SetTitle("SP for f2");
     // Heavy PID in telescope
     auto hHeavyPIDTelescope{Histos::PIDHeavyTelescope.GetHistogram()};
 
@@ -502,6 +527,12 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     outTree->Branch("theta3Lab", &theta3Lab_tree);
     double phi3CM_tree{};
     outTree->Branch("phi3CM", &phi3CM_tree);
+    double DeltaEgas_tree{};
+    outTree->Branch("DeltaEgas", &DeltaEgas_tree);
+    double DeltaESil_tree{};
+    outTree->Branch("DeltaESil", &DeltaESil_tree);
+    double DeltaESil1_tree{};
+    outTree->Branch("DeltaESil1", &DeltaESil1_tree);
     auto *outTreeHeavy{new TTree("SimulationTTreeHeavy", "A TTree containing heavy information")};
     double theta4Lab_tree{};
     outTreeHeavy->Branch("theta4Lab", &theta4Lab_tree);
@@ -534,9 +565,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     outTreeNoCut->Branch("RP", &RPNoCuts_tree);
     ActRoot::SilData *silData_tree{new ActRoot::SilData()};
     outTreeNoCut->Branch("silData", &silData_tree);
-    double eLossSilf2Heavy {};
+    double eLossSilf2Heavy{};
     outTreeNoCut->Branch("eLossSilf2Heavy", &eLossSilf2Heavy);
-    double eLossSilf3Heavy {};
+    double eLossSilf3Heavy{};
     outTreeNoCut->Branch("eLossSilf3Heavy", &eLossSilf3Heavy);
 
     // Set Random Ex if needed (no xs available, so will be uniform distributed)
@@ -579,7 +610,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 
         // Randomize (if needed) Ex in a BW distribution
         double randEx = Ex;
-        if (exResolution && isThereXS)
+        if (exResolution && isThereXS && light == "1H")
         {
             if (Ex == 0)
             {
@@ -620,7 +651,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         if (RestOfBeamLine)
         {
             TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.0038); // Mylar CFA
-            TbeamRand = srim->SlowWithStraggling("beamCFA", TbeamRand, 19); // Gas CFA
+            TbeamRand = srim->SlowWithStraggling("beamCFA", TbeamRand, 19);       // Gas CFA
 
             TbeamRand = srim->SlowWithStraggling("beamMylar", TbeamRand, 0.012); // Entrance window of ACTAR
 
@@ -640,7 +671,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         double phi3CM{};
         double theta3CMBefore{-1};
         double weight{1.};
-        auto *silData{new ActRoot::SilData()}; 
+        auto *silData{new ActRoot::SilData()};
         if (isThereXS)
         {
             auto beamThreshold{ActPhysics::Kinematics(beam, target, light, heavy, -1, randEx).GetT1Thresh()};
@@ -654,7 +685,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             {
                 while (theta3CMBefore < 0)
                 {
-                    theta3CMBefore = xs->SampleCDF(gRandom->Uniform());
+                    // theta3CMBefore = xs->SampleCDF(gRandom->Uniform());
+                    theta3CMBefore = xs->SampleHist();
+                    //std::cout << theta3CMBefore << std::endl;
                 } // sample in deg
             }
             else
@@ -776,8 +809,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         ROOT::Math::XYZPoint silPointHeavy0;
         std::string layerHeavy0;
         std::tie(silIndexHeavy0, silPointHeavy0) = sils->FindSPInLayer("f2", vertex, directionHeavy);
-        bool hitHeavy0 {false};
-        if(silIndexHeavy0 != -1)
+        bool hitHeavy0{false};
+        if (silIndexHeavy0 != -1)
         {
             hitHeavy0 = true;
             layerHeavy0 = "f2";
@@ -786,20 +819,20 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         int silIndexHeavy1 = -1;
         ROOT::Math::XYZPoint silPointHeavy1;
         std::string layerHeavy1;
-        bool hitHeavy1 {false};
-        if(hitHeavy0)
+        bool hitHeavy1{false};
+        if (hitHeavy0)
         {
             std::tie(silIndexHeavy1, silPointHeavy1) = sils->FindSPInLayer("f3", vertex, directionHeavy);
-            if(silIndexHeavy1 != -1)
+            if (silIndexHeavy1 != -1)
             {
                 hitHeavy1 = true;
                 layerHeavy1 = "f3";
             }
         }
         // Compute eLoss in silicons for Heavy particle
-        if(hitHeavy0 && hitHeavy1)
+        if (hitHeavy0 && hitHeavy1)
         {
-            auto normalHeavy {sils->GetLayer(layerHeavy0).GetNormal()};
+            auto normalHeavy{sils->GetLayer(layerHeavy0).GetNormal()};
             auto angleWithNormalHeavy{TMath::ACos(directionHeavy.Unit().Dot(normalHeavy.Unit()))};
             auto T4InSil0{srim->SlowWithStraggling("heavy", T4Lab, (silPointHeavy0 - vertex).R())};
             auto T4AfterSil0{srim->SlowWithStraggling("heavyInSil", T4InSil0, sils->GetLayer(layerHeavy0).GetUnit().GetThickness(), angleWithNormalHeavy)};
@@ -812,7 +845,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             eLossSilf2Heavy = eLossf2;
             eLossSilf3Heavy = eLossf3;
         }
-        
+
         // Fill the SilData for silicon hit on all cases
         // FillSiliconHitsNoCuts(silData, theta3Lab, phi3Lab, T3Lab, theta4Lab, phi4Lab, T4Lab, vertex, AllsilLayers, sils, *silRes, srim);
         // Fill tree with no cuts
@@ -856,7 +889,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         }
 
         // Slow down light in gas
-        auto T3AtSil{srim->SlowWithStraggling("light", T3Lab, (silPoint0 - vertex).R())};          
+        auto T3AtSil{srim->SlowWithStraggling("light", T3Lab, (silPoint0 - vertex).R())};
         // Check if stopped
         ApplyNaN(T3AtSil);
         if (std::isnan(T3AtSil))
@@ -879,40 +912,40 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             }
             continue;
         }
-        double DeltaELength {-1};
-        if(layer0 == "f0")
+        double DeltaELength{-1};
+        if (layer0 == "f0")
         {
-            auto line {new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
-            auto boundaryPoint {line->MoveToX(256)}; 
+            auto line{new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
+            auto boundaryPoint{line->MoveToX(256)};
             auto T3AtSilLight{T3Lab - srim->SlowWithStraggling("light", T3Lab, (boundaryPoint - vertex).R())};
             DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
             hDeltaEGasThetaLight->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
-            if(DeltaELength > 2)
-                hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+            // if(DeltaELength > 2)
+            //     hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
             delete line;
-        }  
-        if(layer0 == "l0")
+        }
+        if (layer0 == "l0")
         {
-            auto line {new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
-            auto boundaryPoint {line->MoveToY(256)}; 
+            auto line{new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
+            auto boundaryPoint{line->MoveToY(256)};
             auto T3AtSilLight{T3Lab - srim->SlowWithStraggling("light", T3Lab, (boundaryPoint - vertex).R())};
             DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
             hDeltaEGasThetaLightSide->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
             delete line;
-            if(DeltaELength > 2)
-                hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
-        }  
-        if(layer0 == "r0")
+            // if(DeltaELength > 2)
+            //     hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+        }
+        if (layer0 == "r0")
         {
-            auto line {new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
-            auto boundaryPoint {line->MoveToY(0)}; 
+            auto line{new ActRoot::Line(ActRoot::CastXYZPoint<float>(vertex), ActRoot::CastXYZVector<float>(direction), 0)};
+            auto boundaryPoint{line->MoveToY(0)};
             auto T3AtSilLight{T3Lab - srim->SlowWithStraggling("light", T3Lab, (boundaryPoint - vertex).R())};
             DeltaELength = T3AtSilLight / (boundaryPoint - vertex).R() * 1000;
             hDeltaEGasThetaLightSide->Fill(theta3Lab * TMath::RadToDeg(), DeltaELength);
             delete line;
-            if(DeltaELength > 2)
-                hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
-        } 
+            // if(DeltaELength > 2)
+            //     hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+        }
 
         // Slow down in silicon
         auto normal{sils->GetLayer(layer0).GetNormal()};
@@ -972,9 +1005,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 }
             }
         }
-
         // Reconstruct!
-        bool isOk{(T3AfterSil0 == 0 || T3AfterSil1 == 0)  &&  (DeltaELength > 2)}; // no punchthrouhg
+        bool isOk{(T3AfterSil0 == 0 || T3AfterSil1 == 0)}; // no punchthrouhg
         if (isOk)
         {
             // Assuming no punchthrough!
@@ -1010,12 +1042,14 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 hSPl0->Fill(silPoint0.X(), silPoint0.Z());
                 hTheta3LabReachLatSil->Fill(theta3Lab * TMath::RadToDeg());
                 hKinLatSilReach->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+                hEVertexESil->Fill(T3Lab, T3AtSil);
             }
             if (layer0 == "r0")
             {
                 hSPr0->Fill(silPoint0.X(), silPoint0.Z());
                 hTheta3LabReachLatSil->Fill(theta3Lab * TMath::RadToDeg());
                 hKinLatSilReach->Fill(theta3Lab * TMath::RadToDeg(), T3Lab);
+                hEVertexESil->Fill(T3Lab, T3AtSil);
             }
             hThetaCMSilicon->Fill(theta3CMBefore); // Other hThetaCM has efficiency for L1 events also
             hThetaCM->Fill(theta3CMBefore);        // only thetaCm that enter our cuts
@@ -1027,12 +1061,25 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
             hThetaLabMeassureSil->Fill(theta3Lab * TMath::RadToDeg());
             hThetaCMMeassureSil->Fill(theta3CMBefore);
 
+            // Debufg Plots
+            hKinDebug->Fill(theta3Lab * TMath::RadToDeg(), T3Rec);
+            hKinHeavyDebug->Fill(theta4Lab * TMath::RadToDeg(), T4Lab);
+            hTheta3Theta4LabDebug->Fill(theta3Lab * TMath::RadToDeg(), theta4Lab * TMath::RadToDeg());
+            if (!(silIndexHeavy1 == -1))
+            {
+                hPIDHeavyDebug->Fill(eLossSilf2Heavy, eLossSilf3Heavy);
+            }
+            hSPf0HeavyDebug->Fill(silPointHeavy0.Y(), silPointHeavy0.Z());
+
             // write to TTree
             Eex_tree = ExRec;
             theta3CM_tree = theta3CM * TMath::RadToDeg();
             EVertex_tree = T3Rec;
             theta3Lab_tree = theta3Lab * TMath::RadToDeg();
             phi3CM_tree = phi3CM;
+            DeltaEgas_tree = DeltaELength;
+            DeltaESil_tree = eLoss0;
+            DeltaESil1_tree = eLoss1;
             outTree->Fill();
             theta4Lab_tree = theta4Lab;
             phi4Lab_tree = phi4Lab;
@@ -1180,6 +1227,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         cLat->cd(6);
         hTheta3LabLatSilPunch->DrawClone();
         cLat->cd(7);
+        hEVertexESil->DrawClone("colz");
+        cLat->cd(8);
+        hdistanceSPtol0->DrawClone();
 
         auto cLatKin{new TCanvas{"cLatKin", "Kinematics for lateral silicons"}};
         cLatKin->DivideSquare(10);
@@ -1250,15 +1300,18 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         cBeam->cd(1);
         hTbeam->DrawClone();
 
-        auto cDebug {new TCanvas{"cDebug", "Debugging plots"}};
-        cDebug->DivideSquare(4);
-        cDebug->cd(2);
-        hDeltaEGasThetaLight->DrawClone("colz");
-        cDebug->cd(3);
-        hDeltaEGasThetaLightSide->DrawClone("colz");
-        cDebug->cd(4);
+        auto cDebug{new TCanvas{"cDebug", "Debugging plots"}};
+        cDebug->DivideSquare(6);
+        cDebug->cd(1);
         hKinDebug->DrawClone("colz");
-
-     }
+        cDebug->cd(2);
+        hKinHeavyDebug->DrawClone("colz");
+        cDebug->cd(3);
+        hTheta3Theta4LabDebug->DrawClone("colz");
+        // cDebug->cd(4);
+        // hPIDHeavyDebug->DrawClone("colz");
+        cDebug->cd(5);
+        hSPf0HeavyDebug->DrawClone("colz");
+    }
 }
 #endif

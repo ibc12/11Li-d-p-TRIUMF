@@ -11,13 +11,13 @@ void runner(TString what = "plot", bool inspect = true)
     // Beam energy
     double Tbeam {11 * 7.5}; // MeV
     // Neutron and Proton phase space
-    int neutronPS {2}; // number of neutrons in final state
+    int neutronPS {0}; // number of neutrons in final state
     int protonPS {0};  // number of protons in final state
     // Particles
     std::string beam {"11Li"};
     std::string target {"2H"};
-    std::string light {"2H"};
-    std::string heavy {"11Li"};
+    std::string light {"3H"};
+    std::string heavy {"10Li"};
     // Vector with Exs
     std::vector<double> Exs;
     if(neutronPS == 0 && protonPS == 0 && target == "2H" && light == "1H") // Transfer dp
@@ -26,7 +26,7 @@ void runner(TString what = "plot", bool inspect = true)
         Exs = {0, 1.266, 2.474};
     else if(target == "2H" && light == "3H") // dt (only g.s)
         Exs = {0};
-    else if(heavy == "9He" && heavy == "10He") // dt (only g.s)
+    else if(heavy == "9He" || heavy == "10He") // d3He,alpha (only g.s)
         Exs = {0};
     else if(neutronPS == 2 && protonPS == 0 && target == "2H" && light == "2H")
         Exs = {(1.26642 + 0.36928) / 2}; // half value between first excited state and the S_2n
