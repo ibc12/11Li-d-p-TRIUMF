@@ -9,15 +9,15 @@
 void runner(TString what = "plot", bool inspect = true)
 {
     // Beam energy
-    double Tbeam {11 * 7.5}; // MeV
+    double Tbeam {7 * 7.5}; // MeV
     // Neutron and Proton phase space
-    int neutronPS {0}; // number of neutrons in final state
+    int neutronPS {1}; // number of neutrons in final state
     int protonPS {0};  // number of protons in final state
     // Particles
-    std::string beam {"11Li"};
+    std::string beam {"7Li"};
     std::string target {"2H"};
-    std::string light {"3H"};
-    std::string heavy {"10Li"};
+    std::string light {"1H"};
+    std::string heavy {"8Li"};
     // Vector with Exs
     std::vector<double> Exs;
     if(neutronPS == 0 && protonPS == 0 && target == "2H" && light == "1H") // Transfer dp

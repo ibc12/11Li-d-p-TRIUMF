@@ -30,6 +30,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <fstream>
 
 #include "../Histos.h"
 
@@ -69,6 +70,30 @@ void ApplyThetaRes(double &theta)
 double RandomizeBeamEnergy(double Tini, double sigma)
 {
     return gRandom->Gaus(Tini, sigma);
+}
+
+std::map<std::string, double> LoadEfficiencies(const std::string &filename)
+{
+    std::map<std::string, double> efficiencies;
+    std::ifstream fin(filename);
+    std::string key;
+    double value;
+    while (fin >> key >> value)
+    {
+        efficiencies[key] = value;
+    }
+    fin.close();
+    return efficiencies;
+}
+
+bool AcceptHit(std::map<std::string, double> efficiencies, const std::string &layer, int detID)
+{
+    TString key = Form("%s_%d", layer.c_str(), detID);
+    auto it = efficiencies.find(key.Data());
+    if (it == efficiencies.end())
+        return true; // si no está definido → aceptar
+    double eff = it->second;
+    return (gRandom->Rndm() < eff);
 }
 
 void FillSiliconHitsNoCuts(ActRoot::SilData *silData, double theta3Lab, double phi3Lab,
@@ -286,6 +311,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         if (name == "l0" || name == "r0")
             layer.MoveZTo(75, {3});
     }
+    // Silicon malfunction txt
+    std::string silEfficienciesPath{"../Inputs/Efficiencies/silicon_efficiencies.txt"};
+    std::map<std::string, double> silEfficiencies {LoadEfficiencies(silEfficienciesPath)};
 
     std::cout << "Sils Z centred at : " << tpc.Z() / 2 << " mm" << '\n';
     sils->DrawGeo();
@@ -296,8 +324,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     // Sigmas
     const double sigmaPercentBeam{0.008};
     // Flags for resolution
-    bool IC{true};             // If true, we will slow the beam in the IC
-    bool RestOfBeamLine{true}; // If true enables CFA and mylar of entrance
+    bool IC{false};             // If true, we will slow the beam in the IC
+    bool RestOfBeamLine{false}; // If true enables CFA and mylar of entrance
     bool exResolution{true};
 
     // SRIM
@@ -309,9 +337,9 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     std::string Mylar{"Mylar"};
     std::string silicon{"silicon"};
     srim->ReadTable("beam", path + beam + "_" + gas + ".txt");
-    srim->ReadTable("beamIC", path + beam + "_" + ICgas + ".txt");
-    srim->ReadTable("beamCFA", path + beam + "_" + CFAgas + ".txt");
-    srim->ReadTable("beamMylar", path + beam + "_" + Mylar + ".txt");
+    // srim->ReadTable("beamIC", path + beam + "_" + ICgas + ".txt");
+    // srim->ReadTable("beamCFA", path + beam + "_" + CFAgas + ".txt");
+    // srim->ReadTable("beamMylar", path + beam + "_" + Mylar + ".txt");
     srim->ReadTable("light", path + light + "_" + gas + ".txt");
     srim->ReadTable("heavy", path + heavy + "_" + gas + ".txt");
     srim->ReadTable("lightInSil", path + light + "_" + silicon + ".txt");
@@ -469,8 +497,8 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     hRange1->SetTitle("Range");
     auto hT3test{Histos::T3Lab.GetHistogram()};
     hT3test->SetTitle("T3Lab");
-    auto hDistToSils {new TH1D("hDistToSils", "Distance to silicons;Distance [mm];Counts", 200, 0, 400)};
-    auto hEVertexESil {new TH2D("hEVertexESil", "EVertex vs Energy at Sil;Energy [MeV];Energy [MeV]", 200, 0, 80, 200, 0, 80)};
+    auto hDistToSils{new TH1D("hDistToSils", "Distance to silicons;Distance [mm];Counts", 200, 0, 400)};
+    auto hEVertexESil{new TH2D("hEVertexESil", "EVertex vs Energy at Sil;Energy [MeV];Energy [MeV]", 200, 0, 80, 200, 0, 80)};
     // Kin and eff for lat silicons
     auto hKinLatSil{Histos::Kin.GetHistogram()};
     hKinLatSil->SetTitle("Kinematics for particles that go to lateral silicons (impact + stop)");
@@ -514,7 +542,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 
     // File to save data
     TString fileName{
-        TString::Format("../Outputs/%.1fMeV/%s_%s_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d_%s.root", Tbeam / 11, target.c_str(), light.c_str(), Ex, neutronPS, protonPS, silConfig.c_str())};
+        TString::Format("../Outputs/%.1fMeV/%s_%s_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d_%s_%s.root", Tbeam / 11, target.c_str(), light.c_str(), Ex, neutronPS, protonPS, silConfig.c_str(), beam.c_str())};
     auto *outFile{new TFile(fileName, "recreate")};
     auto *outTree{new TTree("SimulationTTree", "A TTree containing only our Eex obtained by simulation")};
     double theta3CM_tree{};
@@ -687,7 +715,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 {
                     // theta3CMBefore = xs->SampleCDF(gRandom->Uniform());
                     theta3CMBefore = xs->SampleHist();
-                    //std::cout << theta3CMBefore << std::endl;
+                    // std::cout << theta3CMBefore << std::endl;
                 } // sample in deg
             }
             else
@@ -804,6 +832,12 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
                 break;
             }
         }
+        // Check if corresponds to a hit when the detector was off or on
+        if(!AcceptHit(silEfficiencies, layer0, silIndex0))
+        {
+            continue; // if not accepted, go to next iteration
+        }
+            
         // Check now hit of heavy particle
         int silIndexHeavy0 = -1;
         ROOT::Math::XYZPoint silPointHeavy0;
