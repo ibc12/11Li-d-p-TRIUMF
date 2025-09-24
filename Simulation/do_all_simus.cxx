@@ -363,7 +363,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     double alpha{1.};
     double NLi11{3000 * 6 * 24 * 3600};   // 3000 particles per second, 6 days
     double Nd{4.6688e19 * 25.6 * 0.8877}; // atom density, 25,6 cm long, 88.77% d2
-    if (neutronPS == 0 && protonPS == 0 && target == "2H" && light == "1H")
+    if (neutronPS == 0 && protonPS == 0 && target == "2H" && light == "1H" && beam == "11Li")
     {
         isThereXS = true;
         if (Ex == 0.)
@@ -527,7 +527,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
     auto hKinDebug{new TH2D("hKin", "Kinematics;#theta_{light, Lab} [#circ];E_{light} [MeV]", 350, 0, 165, 350, 0,
                             60)};
     hKinDebug->SetTitle("Kinematics for light particle ");
-    auto hKinHeavyDebug{new TH2D("hKin", "Kinematics;#theta_{heavy, Lab} [#circ];E_{heavy} [MeV]", 350, 0, 25, 350, 0,
+    auto hKinHeavyDebug{new TH2D("hKinHeavy", "Kinematics;#theta_{heavy, Lab} [#circ];E_{heavy} [MeV]", 350, 0, 25, 350, 0,
                                  85)};
     hKinDebug->SetTitle("Kinematics for heavy particle ");
     auto hTheta3Theta4LabDebug{Histos::Theta3Theta4.GetHistogram()};
@@ -542,7 +542,7 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
 
     // File to save data
     TString fileName{
-        TString::Format("../Outputs/%.1fMeV/%s_%s_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d_%s_%s.root", Tbeam / 11, target.c_str(), light.c_str(), Ex, neutronPS, protonPS, silConfig.c_str(), beam.c_str())};
+        TString::Format("../Outputs/%.1fMeV/%s_%s_TRIUMF_Eex_%.3f_nPS_%d_pPS_%d_%s_%s.root", Tbeam / 7, target.c_str(), light.c_str(), Ex, neutronPS, protonPS, silConfig.c_str(), beam.c_str())};
     auto *outFile{new TFile(fileName, "recreate")};
     auto *outTree{new TTree("SimulationTTree", "A TTree containing only our Eex obtained by simulation")};
     double theta3CM_tree{};
