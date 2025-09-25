@@ -837,6 +837,10 @@ void do_all_simus(const std::string &beam, const std::string &target, const std:
         {
             continue; // if not accepted, go to next iteration
         }
+        // get only the events that impact in l0 and r0 for phase space simulations
+        // if(layer0 != "l0" && layer0 != "r0")
+        //     continue;
+
             
         // Check now hit of heavy particle
         int silIndexHeavy0 = -1;
